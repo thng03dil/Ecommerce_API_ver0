@@ -7,6 +7,9 @@ D:\Work\Project\Ecommerce_API\bin\Debug\net8.0\Ecommerce_API.dll
 D:\Work\Project\Ecommerce_API\bin\Debug\net8.0\Ecommerce_API.pdb
 D:\Work\Project\Ecommerce_API\bin\Debug\net8.0\Azure.Core.dll
 D:\Work\Project\Ecommerce_API\bin\Debug\net8.0\Azure.Identity.dll
+D:\Work\Project\Ecommerce_API\bin\Debug\net8.0\FluentValidation.dll
+D:\Work\Project\Ecommerce_API\bin\Debug\net8.0\FluentValidation.AspNetCore.dll
+D:\Work\Project\Ecommerce_API\bin\Debug\net8.0\FluentValidation.DependencyInjectionExtensions.dll
 D:\Work\Project\Ecommerce_API\bin\Debug\net8.0\Humanizer.dll
 D:\Work\Project\Ecommerce_API\bin\Debug\net8.0\Microsoft.Bcl.AsyncInterfaces.dll
 D:\Work\Project\Ecommerce_API\bin\Debug\net8.0\Microsoft.CodeAnalysis.dll
@@ -128,6 +131,7 @@ D:\Work\Project\Ecommerce_API\obj\Debug\net8.0\Ecommerce_API.AssemblyInfo.cs
 D:\Work\Project\Ecommerce_API\obj\Debug\net8.0\Ecommerce_API.csproj.CoreCompileInputs.cache
 D:\Work\Project\Ecommerce_API\obj\Debug\net8.0\Ecommerce_API.MvcApplicationPartsAssemblyInfo.cs
 D:\Work\Project\Ecommerce_API\obj\Debug\net8.0\Ecommerce_API.MvcApplicationPartsAssemblyInfo.cache
+D:\Work\Project\Ecommerce_API\obj\Debug\net8.0\Ecommerce_API.sourcelink.json
 D:\Work\Project\Ecommerce_API\obj\Debug\net8.0\staticwebassets.build.json
 D:\Work\Project\Ecommerce_API\obj\Debug\net8.0\staticwebassets.development.json
 D:\Work\Project\Ecommerce_API\obj\Debug\net8.0\staticwebassets\msbuild.Ecommerce_API.Microsoft.AspNetCore.StaticWebAssets.props
@@ -142,4 +146,3 @@ D:\Work\Project\Ecommerce_API\obj\Debug\net8.0\refint\Ecommerce_API.dll
 D:\Work\Project\Ecommerce_API\obj\Debug\net8.0\Ecommerce_API.pdb
 D:\Work\Project\Ecommerce_API\obj\Debug\net8.0\Ecommerce_API.genruntimeconfig.cache
 D:\Work\Project\Ecommerce_API\obj\Debug\net8.0\ref\Ecommerce_API.dll
-D:\Work\Project\Ecommerce_API\obj\Debug\net8.0\Ecommerce_API.sourcelink.json

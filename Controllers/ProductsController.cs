@@ -2,6 +2,7 @@
 
 using Ecommerce_API.Services.Interfaces;
 using Ecommerce_API.DTOs.ProductDtos;
+using Ecommerce_API.Helpers;
 
 namespace Ecommerce_API.Controllers
 {
@@ -17,15 +18,15 @@ namespace Ecommerce_API.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAll()
+        public async Task<IActionResult> GetAll([FromQuery] Pagination pagination)
         {
-            var products = await _service.GetAllAsync();
-            return Ok(products);
+            var result = await _service.GetAllAsync(pagination);
+            return Ok(result);
         }
 
         [HttpGet("{id}")]
         public async Task<IActionResult> Get(int id)
-        {
+        {                                                                                            
             var product = await _service.GetByIdAsync(id);
             if (product == null)
                 return NotFound();
@@ -36,21 +37,14 @@ namespace Ecommerce_API.Controllers
         [HttpPost]
         public async Task<IActionResult> Create(ProductCreateDto dto)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            var created = await _service.CreateAsync(dto);
-
-            return CreatedAtAction(nameof(Get), new { id = created.Id }, created);
+            var result = await _service.CreateAsync(dto);
+            return Ok(result);
         }
 
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, ProductUpdateDto dto)
         {
-            var result = await _service.UpdateAsync(id, dto);
-
-            if (!result)
-                return NotFound();
+            await _service.UpdateAsync(id, dto);
 
             return NoContent();
         }
@@ -58,11 +52,7 @@ namespace Ecommerce_API.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
-            var result = await _service.DeleteAsync(id);
-
-            if (!result)
-                return NotFound();
-
+            await _service.DeleteAsync(id);
             return NoContent();
         }
     }

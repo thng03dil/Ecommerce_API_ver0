@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Ecommerce_API.Services.Interfaces;
 using Ecommerce_API.DTOs.CategoryDtos;
+using Ecommerce_API.Helpers;
 
 
 namespace Ecommerce_API.Controllers
@@ -17,9 +18,10 @@ namespace Ecommerce_API.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAll()
+        public async Task<IActionResult> GetAll([FromQuery] Pagination pagination)
         {
-            return Ok(await _service.GetAllAsync());
+            var result = await _service.GetAllAsync(pagination);
+            return Ok(result);
         }
 
         [HttpGet("{id}")]
@@ -33,24 +35,18 @@ namespace Ecommerce_API.Controllers
             return Ok(result);
         }
 
-        [HttpPost]
+        [HttpPost]                                                                                              
         public async Task<IActionResult> Create(CategoryCreateDto dto)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            var created = await _service.CreateAsync(dto);
-
-            return CreatedAtAction(nameof(Get), new { id = created.Id }, created);
+          
+            var result = await _service.CreateAsync(dto);
+            return Ok(result);
         }
 
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, CategoryUpdateDto dto)
         {
-            var updated = await _service.UpdateAsync(id, dto);
-
-            if (!updated)
-                return NotFound();
+             await _service.UpdateAsync(id, dto);
 
             return NoContent();
         }
@@ -58,11 +54,7 @@ namespace Ecommerce_API.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
-            var deleted = await _service.DeleteAsync(id);
-
-            if (!deleted)
-                return BadRequest("Không thể xoá danh mục vì còn sản phẩm.");
-
+            await _service.DeleteAsync(id);
             return NoContent();
         }
     }

@@ -1,5 +1,6 @@
 ﻿using Ecommerce_API.Data;
 using Ecommerce_API.DTOs.ProductDtos;
+using Ecommerce_API.Helpers;
 using Ecommerce_API.Models;
 using Ecommerce_API.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -15,19 +16,25 @@ namespace Ecommerce_API.Services.Implementations
             _context = context;
         }
 
-        public async Task<IEnumerable<ProductResponseDto>> GetAllAsync()
+        public async Task<IEnumerable<ProductResponseDto>> GetAllAsync(Pagination pagination)
         {
+            var query = _context.Products
+                .Where(x => !x.IsDeleted)
+                .Skip((pagination.PageNumber - 1) * pagination.PageSize)
+                .Take(pagination.PageSize);
+
             return await _context.Products
                 .Include(p => p.Category)
                 .Select(p => new ProductResponseDto
                 {
                     Id = p.Id,
-                    CategoryId = p.CategoryId,
-                    CategoryName = p.Category!.Name,
                     Name = p.Name,
-                    Price = p.Price,
                     Description = p.Description,
-                    Stock = p.Stock
+                    Price = p.Price,
+                    Stock = p.Stock,
+                    CategoryId = p.CategoryId,
+                    CategoryName = p.Category!.Name
+                    
                 })
                 .ToListAsync();
         }
@@ -36,30 +43,31 @@ namespace Ecommerce_API.Services.Implementations
         {
             var product = await _context.Products
                 .Include(p => p.Category)
-                .FirstOrDefaultAsync(p => p.Id == id);
+                .FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
 
-            if (product == null) return null;
+            if (product == null)
+                throw new Exception("Product not found");
 
             return new ProductResponseDto
             {
                 Id = product.Id,
+                Name = product.Name,
+                Description = product.Description,
+                Price = product.Price,
+                Stock = product.Stock,
                 CategoryId = product.CategoryId,
                 CategoryName = product.Category!.Name,
-                Name = product.Name,
-                Price = product.Price,
-                Description = product.Description,
-                Stock = product.Stock
             };
         }
 
         public async Task<ProductResponseDto> CreateAsync(ProductCreateDto dto)
         {
-            // Validate Category tồn tại
+            // Validate Category exist
             var categoryExists = await _context.Categories
                 .AnyAsync(c => c.Id == dto.CategoryId);
 
             if (!categoryExists)
-                throw new Exception("Category không tồn tại");
+                throw new Exception("Category not found");
 
             var product = new Product
             {
@@ -87,35 +95,39 @@ namespace Ecommerce_API.Services.Implementations
             };
         }
 
-        public async Task<bool> UpdateAsync(int id, ProductUpdateDto dto)
+        public async Task UpdateAsync(int id, ProductUpdateDto dto)
         {
-            var product = await _context.Products.FindAsync(id);
-            if (product == null) return false;
+            var product = await _context.Products
+            .FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
+            if (product == null)
+                throw new Exception("Product not found");
 
-            var categoryExists = await _context.Categories
+            if (dto.CategoryId.HasValue && dto.CategoryId.Value != 0)
+            {
+                var categoryExists = await _context.Categories
                 .AnyAsync(c => c.Id == dto.CategoryId);
+                if (!categoryExists)
+                    throw new Exception("Category not found");
+                product.CategoryId = dto.CategoryId.Value;
+            }
 
-            if (!categoryExists)
-                return false;
-
-            product.CategoryId = dto.CategoryId;
             product.Name = dto.Name;
             product.Price = dto.Price;
             product.Description = dto.Description;
             product.Stock = dto.Stock;
+            product.IsActive = dto.IsActive;
 
             await _context.SaveChangesAsync();
-            return true;
         }
 
-        public async Task<bool> DeleteAsync(int id)
+        public async Task DeleteAsync(int id)
         {
             var product = await _context.Products.FindAsync(id);
-            if (product == null) return false;
+            if (product == null)
+                throw new Exception("Product not found");
 
-            _context.Products.Remove(product);
+            product.IsDeleted = true;
             await _context.SaveChangesAsync();
-            return true;
         }
     }
 }
