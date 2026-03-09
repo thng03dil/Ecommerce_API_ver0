@@ -19,11 +19,13 @@ namespace Ecommerce_API.Services.Implementations
         public async Task<IEnumerable<CategoryResponseDto>> GetAllAsync(Pagination pagination)
         {
             var query = _context.Categories
-                .Where(x => !x.IsDeleted)
-                .Skip((pagination.PageNumber - 1) * pagination.PageSize)
-                .Take(pagination.PageSize);
+                .AsNoTracking()
+                .Where(x => !x.IsDeleted);
+                
 
             return await query
+                .Skip((pagination.PageNumber - 1) * pagination.PageSize)
+                .Take(pagination.PageSize)
                 .Select(c => new CategoryResponseDto
                 {
                     Id = c.Id,
@@ -38,6 +40,7 @@ namespace Ecommerce_API.Services.Implementations
         public async Task<CategoryResponseDto?> GetByIdAsync(int id)
         {
             var category = await _context.Categories
+                .AsNoTracking()
                 .Include(c => c.Products)
                 .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
 
@@ -80,6 +83,7 @@ namespace Ecommerce_API.Services.Implementations
         public async Task UpdateAsync(int id, CategoryUpdateDto dto)
         {
             var category = await _context.Categories
+                .AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
             if (category == null)
                 throw new Exception("Category not found");
@@ -95,6 +99,7 @@ namespace Ecommerce_API.Services.Implementations
         public async Task DeleteAsync(int id)
         {
             var category = await _context.Categories
+                .AsNoTracking()
                 .Include(c => c.Products)
                 .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted);
 

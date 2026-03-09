@@ -19,12 +19,14 @@ namespace Ecommerce_API.Services.Implementations
         public async Task<IEnumerable<ProductResponseDto>> GetAllAsync(Pagination pagination)
         {
             var query = _context.Products
-                .Where(x => !x.IsDeleted)
-                .Skip((pagination.PageNumber - 1) * pagination.PageSize)
-                .Take(pagination.PageSize);
+                .AsNoTracking()
+                .Where(x => !x.IsDeleted);
+                
 
-            return await _context.Products
+            return await query
                 .Include(p => p.Category)
+                .Skip((pagination.PageNumber - 1) * pagination.PageSize)
+                .Take(pagination.PageSize)
                 .Select(p => new ProductResponseDto
                 {
                     Id = p.Id,
@@ -42,6 +44,7 @@ namespace Ecommerce_API.Services.Implementations
         public async Task<ProductResponseDto?> GetByIdAsync(int id)
         {
             var product = await _context.Products
+                .AsNoTracking()
                 .Include(p => p.Category)
                 .FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
 
@@ -64,6 +67,7 @@ namespace Ecommerce_API.Services.Implementations
         {
             // Validate Category exist
             var categoryExists = await _context.Categories
+                .AsNoTracking()
                 .AnyAsync(c => c.Id == dto.CategoryId);
 
             if (!categoryExists)
@@ -98,14 +102,14 @@ namespace Ecommerce_API.Services.Implementations
         public async Task UpdateAsync(int id, ProductUpdateDto dto)
         {
             var product = await _context.Products
-            .FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
+                .FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
             if (product == null)
                 throw new Exception("Product not found");
 
             if (dto.CategoryId.HasValue && dto.CategoryId.Value != 0)
             {
                 var categoryExists = await _context.Categories
-                .AnyAsync(c => c.Id == dto.CategoryId);
+                    .AnyAsync(c => c.Id == dto.CategoryId);
                 if (!categoryExists)
                     throw new Exception("Category not found");
                 product.CategoryId = dto.CategoryId.Value;
@@ -122,7 +126,9 @@ namespace Ecommerce_API.Services.Implementations
 
         public async Task DeleteAsync(int id)
         {
-            var product = await _context.Products.FindAsync(id);
+            var product = await _context.Products
+        .FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
+
             if (product == null)
                 throw new Exception("Product not found");
 
