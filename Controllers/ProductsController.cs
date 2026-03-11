@@ -44,16 +44,16 @@ namespace Ecommerce_API.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, ProductUpdateDto dto)
         {
-            await _service.UpdateAsync(id, dto);
+            var result = await _service.UpdateAsync(id, dto);
 
-            return NoContent();
+            return Ok(result); 
         }
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
-            await _service.DeleteAsync(id);
-            return NoContent();
+            var result = await _service.DeleteAsync(id);
+            return Ok(result);
         }
     }
 }

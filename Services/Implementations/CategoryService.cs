@@ -6,6 +6,9 @@ using Ecommerce_API.Services.Interfaces;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Ecommerce_API.Helpers.Pagination;
+using Ecommerce_API.Extensions;
+using Ecommerce_API.Exceptions;
+using Ecommerce_API.Helpers.Responses;
 
 namespace Ecommerce_API.Services.Implementations
 {
@@ -50,7 +53,7 @@ namespace Ecommerce_API.Services.Implementations
             return new PagedResponse<CategoryResponseDto>(items, pagedto.PageNumber, pagedto.PageSize, totalItems);
         }
 
-        public async Task<CategoryResponseDto?> GetByIdAsync(int id)
+        public async Task<ApiResponse<CategoryResponseDto?>> GetByIdAsync(int id)
         {
             var category = await _context.Categories
                 .AsNoTracking()
@@ -58,18 +61,20 @@ namespace Ecommerce_API.Services.Implementations
                 .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
 
             if (category == null)
-                throw new Exception("Category not found");
+                throw new NotFoundException("Category not found");
            
-            return MapToResponseDto(category);
+            var item = MapToResponseDto(category);
+            return new ApiResponse<CategoryResponseDto?>(
+                    true,
+                    "Get data successfully",
+                    item
+                    );
         }
 
-        public async Task<CategoryResponseDto> CreateAsync(CategoryCreateDto dto)
+        public async Task<ApiResponse<CategoryResponseDto>> CreateAsync(CategoryCreateDto dto)
         {
             var validationResult = await _createValidator.ValidateAsync(dto);
-            if (!validationResult.IsValid)
-            {
-                throw new ValidationException(validationResult.Errors);
-            }
+            validationResult.ThrowIfInvalid();
             var category = new Category
             {
                 Name = dto.Name,
@@ -83,23 +88,30 @@ namespace Ecommerce_API.Services.Implementations
 
             await _context.SaveChangesAsync();
 
-            return MapToResponseDto(category);
+            var item = MapToResponseDto(category);
+            return new ApiResponse<CategoryResponseDto>(
+                    true,
+                    "Create data successfully",
+                    item
+                    );
         }
 
-        public async Task<CategoryResponseDto> UpdateAsync(int id, CategoryUpdateDto dto)
+        public async Task<ApiResponse<CategoryResponseDto>> UpdateAsync(int id, CategoryUpdateDto dto)
         {
             dto.Id = id;
 
             var validationResult = await _updateValidator.ValidateAsync(dto);
-            if (!validationResult.IsValid)
-            {
-                throw new ValidationException(validationResult.Errors);
-            }
+            validationResult.ThrowIfInvalid();
 
             var category = await _context.Categories
                 .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
             if (category == null)
-                throw new Exception("Category not found");
+                throw new NotFoundException("Category not found");
+            var slugExists = await _context.Categories
+            .AnyAsync(x => x.Slug == dto.Slug && x.Id != id);
+
+            if (slugExists)
+                throw new Ecommerce_API.Exceptions.ValidationException("slug", "Slug already exists");
 
             category.Name = dto.Name;
             category.Description = dto.Description;
@@ -107,20 +119,32 @@ namespace Ecommerce_API.Services.Implementations
             category.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
-            return MapToResponseDto(category);
+            var item = MapToResponseDto(category);
+            return new ApiResponse<CategoryResponseDto>(
+                   true,
+                   "Update data successfully",
+                   item
+                   );
         }
 
-        public async Task DeleteAsync(int id)
+        public async Task<ApiResponse<CategoryResponseDto>> DeleteAsync(int id)
         {
             var category = await _context.Categories
         .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted);
 
             if (category == null)
-                throw new KeyNotFoundException("Category not found");
+                throw new NotFoundException("Category not found");
 
             category.IsDeleted = true;
 
             await _context.SaveChangesAsync();
+
+            var item = MapToResponseDto(category);
+            return new ApiResponse<CategoryResponseDto>(
+                true,
+                "Delete data successfully",
+                item
+            );
         }
         private static CategoryResponseDto MapToResponseDto(Category c) => new()
         {

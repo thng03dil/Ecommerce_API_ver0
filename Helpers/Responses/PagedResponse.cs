@@ -2,7 +2,10 @@
 {
     public class PagedResponse<T>
     {
-        public IEnumerable<T> Items { get; set; }
+        public bool Success { get; set; } = true;
+
+        public string Message { get; set; } = "Get data successfully";
+        public IEnumerable<T> Data { get; set; }
 
         public int PageNumber { get; set; } = 1;
 
@@ -12,9 +15,10 @@
 
         public int TotalPages { get; set; }
 
-        public PagedResponse(IEnumerable<T> items, int pageNumber, int pageSize, int totalCount)
+        public PagedResponse(IEnumerable<T> data, int pageNumber, int pageSize, int totalCount)
         {
-            Items = items;
+        
+            Data = data;
             PageNumber = pageNumber;
             PageSize = pageSize;
             TotalCount = totalCount;
