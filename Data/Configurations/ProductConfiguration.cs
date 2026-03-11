@@ -31,6 +31,13 @@ namespace Ecommerce_API.Data.Configurations
                 "[Stock] >= 0"
                 ));
 
+            builder.Property(x => x.CreatedAt)
+              .IsRequired()
+              .HasDefaultValueSql("GETDATE()");
+
+            builder.Property(x => x.UpdatedAt)
+                .IsRequired(false);
+
             builder.HasOne(x => x.Category)
                 .WithMany(x => x.Products)
                 .HasForeignKey(x => x.CategoryId);
@@ -47,7 +54,6 @@ namespace Ecommerce_API.Data.Configurations
             Stock = 20,
             CategoryId = 1,
             IsDeleted = false,
-            IsActive = true,
             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
         },
         new Product
@@ -59,7 +65,6 @@ namespace Ecommerce_API.Data.Configurations
             Stock = 15,
             CategoryId = 1,
             IsDeleted = false,
-            IsActive = true,
             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
         },
         new Product
@@ -71,7 +76,6 @@ namespace Ecommerce_API.Data.Configurations
             Stock = 10,
             CategoryId = 2,
             IsDeleted = false,
-            IsActive = true,
             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
         },
         new Product
@@ -83,7 +87,6 @@ namespace Ecommerce_API.Data.Configurations
             Stock = 8,
             CategoryId = 2,
             IsDeleted = false,
-            IsActive = true,
             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
         },
         new Product
@@ -95,7 +98,6 @@ namespace Ecommerce_API.Data.Configurations
             Stock = 30,
             CategoryId = 3,
             IsDeleted = false,
-            IsActive = true,
             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
         },
         new Product
@@ -107,7 +109,6 @@ namespace Ecommerce_API.Data.Configurations
             Stock = 50,
             CategoryId = 3,
             IsDeleted = false,
-            IsActive = true,
             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
         }
     );

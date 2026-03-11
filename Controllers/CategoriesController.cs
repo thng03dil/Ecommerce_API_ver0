@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Ecommerce_API.Services.Interfaces;
 using Ecommerce_API.DTOs.CategoryDtos;
-using Ecommerce_API.Helpers;
+using Ecommerce_API.DTOs.Common;
 
 
 namespace Ecommerce_API.Controllers
@@ -18,7 +18,7 @@ namespace Ecommerce_API.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAll([FromQuery] Pagination pagination)
+        public async Task<IActionResult> GetAll([FromQuery] PaginationDto pagination)
         {
             var result = await _service.GetAllAsync(pagination);
             return Ok(result);

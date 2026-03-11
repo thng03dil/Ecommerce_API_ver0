@@ -1,6 +1,7 @@
 ﻿using Ecommerce_API.Data;
 using Ecommerce_API.DTOs.ProductDtos;
-using Ecommerce_API.Helpers;
+using Ecommerce_API.DTOs.Common;
+using Ecommerce_API.Helpers.Pagination;
 using Ecommerce_API.Models;
 using Ecommerce_API.Services.Interfaces;
 using FluentValidation;
@@ -23,18 +24,19 @@ namespace Ecommerce_API.Services.Implementations
             _updateValidator = updateValidator;
         }
 
-        public async Task<IEnumerable<ProductResponseDto>> GetAllAsync(Pagination pagination)
+        public async Task<PagedResponse<ProductResponseDto>> GetAllAsync(PaginationDto pagedto)
         {
             var query = _context.Products
                 .AsNoTracking()
                 .Where(x => !x.IsDeleted);
+            
+            var totalItems = await query.CountAsync();
 
-
-            return await query
+            var items = await query
                 .Include(p => p.Category)
                 .OrderBy(p => p.Id)
-                .Skip((pagination.PageNumber - 1) * pagination.PageSize)
-                .Take(pagination.PageSize)
+                .Skip((pagedto.PageNumber - 1) * pagedto.PageSize)
+                .Take(pagedto.PageSize)
                 .Select(p => new ProductResponseDto
                 {
                     Id = p.Id,
@@ -43,10 +45,13 @@ namespace Ecommerce_API.Services.Implementations
                     Price = p.Price,
                     Stock = p.Stock,
                     CategoryId = p.CategoryId,
-                    CategoryName = p.Category!.Name
+                    CategoryName = p.Category!.Name,
+                    CreateAt = p.CreatedAt,
+                    UpdateAt = p.UpdatedAt,
 
                 })
                 .ToListAsync();
+            return new PagedResponse<ProductResponseDto>(items, pagedto.PageNumber, pagedto.PageSize, totalItems);
         }
 
         public async Task<ProductResponseDto?> GetByIdAsync(int id)
@@ -80,7 +85,8 @@ namespace Ecommerce_API.Services.Implementations
                 Price = dto.Price,
                 Description = dto.Description,
                 Stock = dto.Stock,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = null
             };
 
             _context.Products.Add(product);
@@ -91,7 +97,7 @@ namespace Ecommerce_API.Services.Implementations
             return MapToResponseDto(product);
         }
 
-        public async Task UpdateAsync(int id, ProductUpdateDto dto)
+        public async Task<ProductResponseDto> UpdateAsync(int id, ProductUpdateDto dto)
         {
             dto.Id = id;
 
@@ -116,10 +122,10 @@ namespace Ecommerce_API.Services.Implementations
             product.Price = dto.Price;
             product.Description = dto.Description;
             product.Stock = dto.Stock;
-            product.IsActive = dto.IsActive;
             product.CategoryId = dto.CategoryId;
-
+            product.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
+            return MapToResponseDto(product);
         }
 
         public async Task DeleteAsync(int id)

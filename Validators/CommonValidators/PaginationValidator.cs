@@ -1,8 +1,8 @@
-﻿using Ecommerce_API.Helpers;
+﻿using Ecommerce_API.DTOs.Common;
 using FluentValidation;
 namespace Ecommerce_API.Validators.CommonValidators
 {
-    public class PaginationValidator : AbstractValidator<Pagination>
+    public class PaginationValidator : AbstractValidator<PaginationDto>
     {
         public PaginationValidator()
         {

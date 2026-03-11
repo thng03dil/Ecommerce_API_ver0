@@ -23,8 +23,8 @@ namespace Ecommerce_API.Migrations
                     Description = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
                     Slug = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     IsDeleted = table.Column<bool>(type: "bit", nullable: false),
-                    IsActive = table.Column<bool>(type: "bit", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETDATE()"),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -43,8 +43,8 @@ namespace Ecommerce_API.Migrations
                     Stock = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
                     CategoryId = table.Column<int>(type: "int", nullable: true),
                     IsDeleted = table.Column<bool>(type: "bit", nullable: false),
-                    IsActive = table.Column<bool>(type: "bit", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETDATE()"),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -59,25 +59,25 @@ namespace Ecommerce_API.Migrations
 
             migrationBuilder.InsertData(
                 table: "Categories",
-                columns: new[] { "Id", "CreatedAt", "Description", "IsActive", "IsDeleted", "Name", "Slug" },
+                columns: new[] { "Id", "CreatedAt", "Description", "IsDeleted", "Name", "Slug", "UpdatedAt" },
                 values: new object[,]
                 {
-                    { 1, new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "Các loại smartphone mới nhất", true, false, "Điện thoại", "dien-thoai" },
-                    { 2, new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "Máy tính xách tay làm việc và chơi game", true, false, "Laptop", "laptop" },
-                    { 3, new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "Tai nghe, sạc, cáp...", true, false, "Phụ kiện", "phu-kien" }
+                    { 1, new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "Các loại smartphone mới nhất", false, "Điện thoại", "dien-thoai", null },
+                    { 2, new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "Máy tính xách tay làm việc và chơi game", false, "Laptop", "laptop", null },
+                    { 3, new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "Tai nghe, sạc, cáp...", false, "Phụ kiện", "phu-kien", null }
                 });
 
             migrationBuilder.InsertData(
                 table: "Products",
-                columns: new[] { "Id", "CategoryId", "CreatedAt", "Description", "IsActive", "IsDeleted", "Name", "Price", "Stock" },
+                columns: new[] { "Id", "CategoryId", "CreatedAt", "Description", "IsDeleted", "Name", "Price", "Stock", "UpdatedAt" },
                 values: new object[,]
                 {
-                    { 1, 1, new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "Chip A17 Pro mạnh mẽ", true, false, "iPhone 15 Pro", 25000000m, 20 },
-                    { 2, 1, new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "Flagship AI 2024", true, false, "Samsung Galaxy S24", 22000000m, 15 },
-                    { 3, 2, new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "Siêu mỏng nhẹ", true, false, "MacBook Air M2", 28000000m, 10 },
-                    { 4, 2, new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "Màn hình vô cực", true, false, "Dell XPS 13", 32000000m, 8 },
-                    { 5, 3, new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "Chống ồn chủ động", true, false, "AirPods Pro 2", 6000000m, 30 },
-                    { 6, 3, new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "Cổng Type-C tiện lợi", true, false, "Sạc nhanh 65W", 500000m, 50 }
+                    { 1, 1, new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "Chip A17 Pro mạnh mẽ", false, "iPhone 15 Pro", 25000000m, 20, null },
+                    { 2, 1, new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "Flagship AI 2024", false, "Samsung Galaxy S24", 22000000m, 15, null },
+                    { 3, 2, new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "Siêu mỏng nhẹ", false, "MacBook Air M2", 28000000m, 10, null },
+                    { 4, 2, new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "Màn hình vô cực", false, "Dell XPS 13", 32000000m, 8, null },
+                    { 5, 3, new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "Chống ồn chủ động", false, "AirPods Pro 2", 6000000m, 30, null },
+                    { 6, 3, new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "Cổng Type-C tiện lợi", false, "Sạc nhanh 65W", 500000m, 50, null }
                 });
 
             migrationBuilder.CreateIndex(

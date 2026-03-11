@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Ecommerce_API.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260310074651_InitialCreate")]
+    [Migration("20260311053842_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -20,7 +20,7 @@ namespace Ecommerce_API.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.24")
+                .HasAnnotation("ProductVersion", "8.0.25")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -34,14 +34,13 @@ namespace Ecommerce_API.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETDATE()");
 
                     b.Property<string>("Description")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
@@ -56,6 +55,9 @@ namespace Ecommerce_API.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Slug")
@@ -69,7 +71,6 @@ namespace Ecommerce_API.Migrations
                             Id = 1,
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             Description = "Các loại smartphone mới nhất",
-                            IsActive = true,
                             IsDeleted = false,
                             Name = "Điện thoại",
                             Slug = "dien-thoai"
@@ -79,7 +80,6 @@ namespace Ecommerce_API.Migrations
                             Id = 2,
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             Description = "Máy tính xách tay làm việc và chơi game",
-                            IsActive = true,
                             IsDeleted = false,
                             Name = "Laptop",
                             Slug = "laptop"
@@ -89,7 +89,6 @@ namespace Ecommerce_API.Migrations
                             Id = 3,
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             Description = "Tai nghe, sạc, cáp...",
-                            IsActive = true,
                             IsDeleted = false,
                             Name = "Phụ kiện",
                             Slug = "phu-kien"
@@ -108,14 +107,13 @@ namespace Ecommerce_API.Migrations
                         .HasColumnType("int");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETDATE()");
 
                     b.Property<string>("Description")
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
@@ -133,6 +131,9 @@ namespace Ecommerce_API.Migrations
                         .HasColumnType("int")
                         .HasDefaultValue(0);
 
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CategoryId");
@@ -149,7 +150,6 @@ namespace Ecommerce_API.Migrations
                             CategoryId = 1,
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             Description = "Chip A17 Pro mạnh mẽ",
-                            IsActive = true,
                             IsDeleted = false,
                             Name = "iPhone 15 Pro",
                             Price = 25000000m,
@@ -161,7 +161,6 @@ namespace Ecommerce_API.Migrations
                             CategoryId = 1,
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             Description = "Flagship AI 2024",
-                            IsActive = true,
                             IsDeleted = false,
                             Name = "Samsung Galaxy S24",
                             Price = 22000000m,
@@ -173,7 +172,6 @@ namespace Ecommerce_API.Migrations
                             CategoryId = 2,
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             Description = "Siêu mỏng nhẹ",
-                            IsActive = true,
                             IsDeleted = false,
                             Name = "MacBook Air M2",
                             Price = 28000000m,
@@ -185,7 +183,6 @@ namespace Ecommerce_API.Migrations
                             CategoryId = 2,
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             Description = "Màn hình vô cực",
-                            IsActive = true,
                             IsDeleted = false,
                             Name = "Dell XPS 13",
                             Price = 32000000m,
@@ -197,7 +194,6 @@ namespace Ecommerce_API.Migrations
                             CategoryId = 3,
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             Description = "Chống ồn chủ động",
-                            IsActive = true,
                             IsDeleted = false,
                             Name = "AirPods Pro 2",
                             Price = 6000000m,
@@ -209,7 +205,6 @@ namespace Ecommerce_API.Migrations
                             CategoryId = 3,
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             Description = "Cổng Type-C tiện lợi",
-                            IsActive = true,
                             IsDeleted = false,
                             Name = "Sạc nhanh 65W",
                             Price = 500000m,

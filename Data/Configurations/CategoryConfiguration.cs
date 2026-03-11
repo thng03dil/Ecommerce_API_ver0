@@ -27,6 +27,13 @@ namespace Ecommerce_API.Data.Configurations
             builder.HasIndex(x => x.Slug)
                 .IsUnique();
 
+            builder.Property(x => x.CreatedAt)
+               .IsRequired()
+               .HasDefaultValueSql("GETDATE()");
+
+            builder.Property(x => x.UpdatedAt)
+                .IsRequired(false);
+
             //create category data
             builder.HasData(
              new Category
@@ -36,8 +43,8 @@ namespace Ecommerce_API.Data.Configurations
                  Description = "Các loại smartphone mới nhất",
                  Slug = "dien-thoai",
                  IsDeleted = false,
-                 IsActive = true,
-                 CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+                 CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                 UpdatedAt = null
              },
              new Category
              {
@@ -46,8 +53,8 @@ namespace Ecommerce_API.Data.Configurations
                  Description = "Máy tính xách tay làm việc và chơi game",
                  Slug = "laptop",
                  IsDeleted = false,
-                 IsActive = true,
-                 CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+                 CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                  UpdatedAt = null
              },
              new Category
              {
@@ -56,8 +63,8 @@ namespace Ecommerce_API.Data.Configurations
                  Description = "Tai nghe, sạc, cáp...",
                  Slug = "phu-kien",
                  IsDeleted = false,
-                 IsActive = true,
-                 CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+                 CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                 UpdatedAt = null
              }
          );
         }

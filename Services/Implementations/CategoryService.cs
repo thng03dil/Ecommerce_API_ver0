@@ -1,10 +1,11 @@
 ﻿using Ecommerce_API.Data;
 using Ecommerce_API.DTOs.CategoryDtos;
-using Ecommerce_API.Helpers;
+using Ecommerce_API.DTOs.Common;
 using Ecommerce_API.Models;
 using Ecommerce_API.Services.Interfaces;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
+using Ecommerce_API.Helpers.Pagination;
 
 namespace Ecommerce_API.Services.Implementations
 {
@@ -24,26 +25,29 @@ namespace Ecommerce_API.Services.Implementations
             _updateValidator = updateValidator;
         }
 
-        public async Task<IEnumerable<CategoryResponseDto>> GetAllAsync(Pagination pagination)
+        public async Task<PagedResponse<CategoryResponseDto>> GetAllAsync(PaginationDto pagedto)
         {
             var query = _context.Categories
                 .AsNoTracking()
                 .Where(x => !x.IsDeleted);
 
-
-            return await query
+            var totalItems = await query.CountAsync();
+            var items = await query
                 .OrderBy(c => c.Id)
-                .Skip((pagination.PageNumber - 1) * pagination.PageSize)
-                .Take(pagination.PageSize)
+                .Skip((pagedto.PageNumber - 1) * pagedto.PageSize)
+                .Take(pagedto.PageSize)
                 .Select(c => new CategoryResponseDto
                 {
                     Id = c.Id,
                     Name = c.Name,
                     Description = c.Description,
                     Slug = c.Slug,
-                    ProductCount = c.Products.Count()
+                    ProductCount = c.Products.Count(),
+                    CreatedAt = c.CreatedAt,
+                    UpdatedAt = c.UpdatedAt
                 })
                 .ToListAsync();
+            return new PagedResponse<CategoryResponseDto>(items, pagedto.PageNumber, pagedto.PageSize, totalItems);
         }
 
         public async Task<CategoryResponseDto?> GetByIdAsync(int id)
@@ -55,7 +59,7 @@ namespace Ecommerce_API.Services.Implementations
 
             if (category == null)
                 throw new Exception("Category not found");
-
+           
             return MapToResponseDto(category);
         }
 
@@ -70,7 +74,9 @@ namespace Ecommerce_API.Services.Implementations
             {
                 Name = dto.Name,
                 Description = dto.Description,
-                Slug = dto.Slug
+                Slug = dto.Slug,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = null
             };
 
             _context.Categories.Add(category);
@@ -80,7 +86,7 @@ namespace Ecommerce_API.Services.Implementations
             return MapToResponseDto(category);
         }
 
-        public async Task UpdateAsync(int id, CategoryUpdateDto dto)
+        public async Task<CategoryResponseDto> UpdateAsync(int id, CategoryUpdateDto dto)
         {
             dto.Id = id;
 
@@ -98,9 +104,10 @@ namespace Ecommerce_API.Services.Implementations
             category.Name = dto.Name;
             category.Description = dto.Description;
             category.Slug = dto.Slug;
-            category.IsActive = dto.IsActive;
+            category.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
+            return MapToResponseDto(category);
         }
 
         public async Task DeleteAsync(int id)
@@ -121,7 +128,9 @@ namespace Ecommerce_API.Services.Implementations
             Name = c.Name,
             Description = c.Description,
             Slug = c.Slug,
-            ProductCount = c.Products?.Count() ?? 0
+            ProductCount = c.Products?.Count() ?? 0,
+            CreatedAt = c.CreatedAt,
+            UpdatedAt = c.UpdatedAt
         };
     }
 }

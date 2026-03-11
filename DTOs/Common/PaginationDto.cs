@@ -1,6 +1,6 @@
-﻿namespace Ecommerce_API.Helpers
+﻿namespace Ecommerce_API.DTOs.Common
 {
-    public class Pagination
+    public class PaginationDto
     {
         public int PageNumber { get; set; } = 1;
 
