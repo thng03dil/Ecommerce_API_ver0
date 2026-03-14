@@ -3,6 +3,10 @@
   "WorkspaceRootPath": "D:\\Work\\Project\\Ecommerce_API\\",
   "Documents": [
     {
+      "AbsoluteMoniker": "D:0:0:{C1649668-59D5-4286-9AD9-EEF92EC10524}|Ecommerce_API.csproj|d:\\work\\project\\ecommerce_api\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{C1649668-59D5-4286-9AD9-EEF92EC10524}|Ecommerce_API.csproj|solutionrelative:program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{C1649668-59D5-4286-9AD9-EEF92EC10524}|Ecommerce_API.csproj|d:\\work\\project\\ecommerce_api\\models\\user.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{C1649668-59D5-4286-9AD9-EEF92EC10524}|Ecommerce_API.csproj|solutionrelative:models\\user.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
@@ -37,10 +41,6 @@
     {
       "AbsoluteMoniker": "D:0:0:{C1649668-59D5-4286-9AD9-EEF92EC10524}|Ecommerce_API.csproj|d:\\work\\project\\ecommerce_api\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
       "RelativeMoniker": "D:0:0:{C1649668-59D5-4286-9AD9-EEF92EC10524}|Ecommerce_API.csproj|solutionrelative:appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{C1649668-59D5-4286-9AD9-EEF92EC10524}|Ecommerce_API.csproj|d:\\work\\project\\ecommerce_api\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{C1649668-59D5-4286-9AD9-EEF92EC10524}|Ecommerce_API.csproj|solutionrelative:program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{C1649668-59D5-4286-9AD9-EEF92EC10524}|Ecommerce_API.csproj|d:\\work\\project\\ecommerce_api\\controllers\\categoriescontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
@@ -78,11 +78,11 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 3,
+          "SelectedChildIndex": 10,
           "Children": [
             {
               "$type": "Document",
-              "DocumentIndex": 6,
+              "DocumentIndex": 7,
               "Title": "JwtSettings.cs",
               "DocumentMoniker": "D:\\Work\\Project\\Ecommerce_API\\Data\\Configurations\\JwtSettings.cs",
               "RelativeDocumentMoniker": "Data\\Configurations\\JwtSettings.cs",
@@ -124,7 +124,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 1,
               "Title": "User.cs",
               "DocumentMoniker": "D:\\Work\\Project\\Ecommerce_API\\Models\\User.cs",
               "RelativeDocumentMoniker": "Models\\User.cs",
@@ -142,7 +142,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 3,
               "Title": "UserRepo.cs",
               "DocumentMoniker": "D:\\Work\\Project\\Ecommerce_API\\Repositories\\Implementations\\UserRepo.cs",
               "RelativeDocumentMoniker": "Repositories\\Implementations\\UserRepo.cs",
@@ -155,7 +155,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 5,
+              "DocumentIndex": 6,
               "Title": "UserConfiguration.cs",
               "DocumentMoniker": "D:\\Work\\Project\\Ecommerce_API\\Data\\Configurations\\UserConfiguration.cs",
               "RelativeDocumentMoniker": "Data\\Configurations\\UserConfiguration.cs",
@@ -168,7 +168,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 2,
               "Title": "AuthService.cs",
               "DocumentMoniker": "D:\\Work\\Project\\Ecommerce_API\\Services\\Implementations\\AuthService.cs",
               "RelativeDocumentMoniker": "Services\\Implementations\\AuthService.cs",
@@ -194,7 +194,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 7,
+              "DocumentIndex": 8,
               "Title": "JwtService.cs",
               "DocumentMoniker": "D:\\Work\\Project\\Ecommerce_API\\Services\\Implementations\\JwtService.cs",
               "RelativeDocumentMoniker": "Services\\Implementations\\JwtService.cs",
@@ -207,20 +207,20 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 9,
+              "DocumentIndex": 0,
               "Title": "Program.cs",
               "DocumentMoniker": "D:\\Work\\Project\\Ecommerce_API\\Program.cs",
               "RelativeDocumentMoniker": "Program.cs",
               "ToolTip": "D:\\Work\\Project\\Ecommerce_API\\Program.cs",
               "RelativeToolTip": "Program.cs",
-              "ViewState": "AQIAAJYAAAAAAAAAAAAAAJoAAAAAAAAA",
+              "ViewState": "AQIAAGYAAAAAAAAAAAAAAIgAAABjAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2026-03-13T03:57:49.438Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 4,
+              "DocumentIndex": 5,
               "Title": "AuthController.cs",
               "DocumentMoniker": "D:\\Work\\Project\\Ecommerce_API\\Controllers\\AuthController.cs",
               "RelativeDocumentMoniker": "Controllers\\AuthController.cs",
@@ -233,7 +233,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 4,
               "Title": "CategoryService.cs",
               "DocumentMoniker": "D:\\Work\\Project\\Ecommerce_API\\Services\\Implementations\\CategoryService.cs",
               "RelativeDocumentMoniker": "Services\\Implementations\\CategoryService.cs",
@@ -246,7 +246,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 8,
+              "DocumentIndex": 9,
               "Title": "appsettings.json",
               "DocumentMoniker": "D:\\Work\\Project\\Ecommerce_API\\appsettings.json",
               "RelativeDocumentMoniker": "appsettings.json",
