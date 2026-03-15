@@ -1,0 +1,131 @@
+﻿using Ecommerce.Infrastructure.Data;
+using Ecommerce.Application.Common.Pagination;
+using Ecommerce.Domain.Common.Filters;
+using Ecommerce.Application.Extensions;
+using Ecommerce.Domain.Entities;
+using Ecommerce.Domain.Interfaces;
+using Microsoft.EntityFrameworkCore;
+
+
+namespace Ecommerce.Infrastructure.Repositories
+{
+    public class ProductRepo : IProductRepo
+    {
+        private readonly AppDbContext _context;
+        public ProductRepo(AppDbContext context)
+        {
+            _context = context;
+        }
+        public async Task<(IEnumerable<Product>, int totalCount)> GetAllAsync(PaginationDto pagedto)
+        {
+            var query = _context.Products
+                        .AsNoTracking()
+                        .Include(p => p.Category)
+                        .Where(x => !x.IsDeleted);
+
+            var totalItem = await query.CountAsync();
+
+            var items = await query
+                .OrderBy(p => p.Id)
+                .Skip((pagedto.PageNumber - 1) * pagedto.PageSize)
+                .Take(pagedto.PageSize) 
+                .ToListAsync();
+            return (items, totalItem);
+        }
+
+        public async Task<int> CountAsync()
+        {
+            var query = _context.Products
+                        .AsNoTracking()
+                        .Where(x => !x.IsDeleted);
+
+            return await query.CountAsync();
+        }
+
+        public async Task<bool> CategoryExistsAsync(int categoryId)
+        {
+            return await _context.Categories
+                .AnyAsync(c => c.Id == categoryId && !c.IsDeleted);
+        }
+
+        public async Task CreateAsync(Product product)
+        {
+            await _context.Products.AddAsync(product);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task LoadCategoryAsync(Product product)
+        {
+            await _context.Entry(product)
+                .Reference(p => p.Category)
+                .LoadAsync();
+        }
+
+
+        public async Task<Product?> GetByIdAsync(int id)
+        {
+            return await _context.Products
+                .FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
+        }
+       
+        public async Task UpdateAsync(Product product)
+        {
+
+           _context.Products.Update(product);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task SaveChangesAsync()
+        {
+            await _context.SaveChangesAsync();
+        }
+
+        //filter
+        public async Task<(IEnumerable<Product>, int)> GetFilteredAsync(
+            ProductFilterDto filter,
+            PaginationDto pagination)
+        {
+            var query = _context.Products
+                .Include(p => p.Category)
+                .AsNoTracking()
+                .Where(p => !p.IsDeleted);
+
+            if (!string.IsNullOrEmpty(filter.Keyword))
+            {
+                query = query.Where(p =>
+                    p.Name.Contains(filter.Keyword));
+            }
+
+            if (filter.CategoryId.HasValue)
+            {
+                query = query.Where(p =>
+                    p.CategoryId == filter.CategoryId);
+            }
+
+            if (filter.MinPrice.HasValue)
+            {
+                query = query.Where(p =>
+                    p.Price >= filter.MinPrice);
+            }
+
+            if (filter.MaxPrice.HasValue)
+            {
+                query = query.Where(p =>
+                    p.Price <= filter.MaxPrice);
+            }
+
+            query = query.ApplySorting(
+                filter.SortBy ?? "Id",
+                filter.SortOrder ?? "asc");
+
+            var total = await query.CountAsync();
+
+            var items = await query
+                .Skip((pagination.PageNumber - 1) * pagination.PageSize)
+                .Take(pagination.PageSize)
+                .ToListAsync();
+
+            return (items, total);
+        }
+    }
+}
