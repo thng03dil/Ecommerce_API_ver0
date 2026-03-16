@@ -6,7 +6,7 @@ using Ecommerce.Domain.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
-using Microsoft.OpenApi;
+using Serilog;
 using Microsoft.OpenApi.Models;
 using Ecommerce.Application.Common.Responses;
 using Microsoft.EntityFrameworkCore;
@@ -19,6 +19,13 @@ using Ecommerce.Domain.Common.Settings;
 
 var builder = WebApplication.CreateBuilder(args);
 
+//log 
+Log.Logger = new LoggerConfiguration()
+    .ReadFrom.Configuration(builder.Configuration)
+    .Enrich.FromLogContext()
+    .CreateLogger();
+
+builder.Host.UseSerilog();
 
 // Add DbContext
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -34,7 +41,6 @@ builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
-builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
 
 builder.Services.AddControllers();
@@ -128,7 +134,6 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     {
         OnChallenge = async context =>
         {
-            // Ngăn mã nguồn gốc trả về 401 trống rỗng
             context.HandleResponse();
 
             context.Response.StatusCode = 401;
@@ -146,17 +151,28 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             };
 
             await context.Response.WriteAsync(JsonSerializer.Serialize(response));
+        },
+        OnForbidden = async context =>
+        {
+            context.Response.StatusCode = 403;
+            context.Response.ContentType = "application/json";
+            var response = new ErrorResponse
+            {
+                StatusCode = 403,
+                Success = false,
+                ErrorCode = "FORBIDDEN",
+                Message = "Access denied: You do not have permission to perform this action.",
+                Path = context.Request.Path,
+                TraceId = context.HttpContext.TraceIdentifier,
+                Timestamp = DateTime.UtcNow
+            };
+
+            await context.Response.WriteAsync(JsonSerializer.Serialize(response));
         }
     };
 });
 
 var app = builder.Build();
-//Console.WriteLine("--------------------------------------------------");
-//Console.WriteLine("BCrypt Hash cho '123456' là: " + BCrypt.Net.BCrypt.HashPassword("123456"));
-//Console.WriteLine("--------------------------------------------------");
-
-
-
 
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
@@ -165,6 +181,13 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+
+app.UseSerilogRequestLogging(options =>
+{
+    options.MessageTemplate =
+        "HTTP {RequestMethod} {RequestPath} responded {StatusCode} in {Elapsed:0} ms";
+});
 
 app.UseHttpsRedirection();
 app.UseAuthentication();  

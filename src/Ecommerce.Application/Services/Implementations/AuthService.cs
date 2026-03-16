@@ -2,13 +2,14 @@
 using Ecommerce.Application.DTOs.Auth;
 using Ecommerce.Application.DTOs.Common;
 using Ecommerce.Application.Exceptions;
+using Ecommerce.Application.Services.Interfaces;
+using Ecommerce.Domain.Common.Settings;
 using Ecommerce.Domain.Entities;
 using Ecommerce.Domain.Interfaces;
-using Ecommerce.Application.Services.Interfaces;
 using Microsoft.AspNetCore.Identity.Data;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Security.Claims;
-using Ecommerce.Domain.Common.Settings;
 
 namespace Ecommerce.Application.Services.Implementations
 {
@@ -18,26 +19,32 @@ namespace Ecommerce.Application.Services.Implementations
         private readonly IJwtService _jwtService;
         private readonly JwtSettings _jwtSettings;
         private readonly IPasswordHasher _passwordHasher;
+        private readonly ILogger<AuthService> _logger;
         public AuthService(
             IUserRepo userRepo,
             IJwtService jwtService,
             IOptions<JwtSettings> jwtSettings,
-            IPasswordHasher passwordHasher)
+            IPasswordHasher passwordHasher,
+            ILogger<AuthService> logger
+            )
         {
             _userRepo = userRepo;
             _jwtService = jwtService;
             _jwtSettings = jwtSettings.Value;
             _passwordHasher = passwordHasher;
-
+            _logger = logger;
         } 
 
         public async Task RegisterAsync(RegisterDto request) 
         {
+            _logger.LogInformation("Register attempt for {Email}", request.Email);
             var exist = await _userRepo.GetByEmailAsync(request.Email);
 
             if (exist != null)
-                throw new Exception("Email already exists");
-
+            {
+                _logger.LogInformation("Register attempt for {Email}", request.Email);
+                throw new ConflictException("Email already exists");
+            }
             var user = new User
             {
                 Email = request.Email,
@@ -47,17 +54,23 @@ namespace Ecommerce.Application.Services.Implementations
 
             await _userRepo.AddAsync(user);
             await _userRepo.SaveChangesAsync();
+
+            _logger.LogInformation("User registered successfully {Email}", request.Email);
         }
 
         public async Task<AuthResponseDto> LoginAsync(LoginDto request)
         {
+            _logger.LogInformation("User login attempt: {Email}", request.Email);
             var user = await _userRepo.GetByEmailAsync(request.Email);
 
             if (user == null ||
                 !_passwordHasher.Verify(request.Password, user.PasswordHash))
             {
+                _logger.LogWarning("Login failed for {Email}", request.Email);
                 throw new UnauthorizedException("Invalid email or password");
             }
+
+            _logger.LogInformation("User login success: {Email}", request.Email);
 
             var accessToken = _jwtService.GenerateAccessToken(user);
             var refreshToken = _jwtService.GenerateRefreshToken();
@@ -79,23 +92,37 @@ namespace Ecommerce.Application.Services.Implementations
         public async Task<AuthResponseDto> RefreshTokenAsync(
             RefreshTokenRequestDto request)
         {
+            _logger.LogInformation("Refresh token attempt");
+
             var principal = _jwtService.GetPrincipalFromExpiredToken(request.AccessToken);
 
             var email = principal.FindFirst(ClaimTypes.Email)?.Value;
 
             if (email == null)
+            {
+                _logger.LogWarning("Refresh token failed - email not found in token");
                 throw new UnauthorizedException("Invalid token");
-
+            }
             var user = await _userRepo.GetByEmailAsync(email);
 
             if (user == null)
+            {
+                _logger.LogWarning("Refresh token failed - user not found {Email}", email);
                 throw new NotFoundException("User not found");
-
+            }
             if (user.RefreshToken != request.RefreshToken)
+            {
+                _logger.LogWarning("Refresh token mismatch for {Email}", email);
                 throw new UnauthorizedException("Invalid refresh token");
-
+            }
             if (user.RefreshTokenExpiryTime <= DateTime.UtcNow)
+            {
+                _logger.LogWarning("Refresh token mismatch for {Email}", email);
                 throw new UnauthorizedException("Refresh token expired");
+            }
+
+
+            _logger.LogInformation("Refresh token success for {Email}", email);
 
             var newAccessToken = _jwtService.GenerateAccessToken(user);
             var newRefreshToken = _jwtService.GenerateRefreshToken();
