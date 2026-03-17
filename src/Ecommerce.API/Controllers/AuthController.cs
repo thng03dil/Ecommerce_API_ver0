@@ -9,7 +9,7 @@ namespace Ecommerce.API.Controllers
 {
     [ApiController]
     [Route("api/auth")]
-    public class AuthController : Controller
+    public class AuthController : BaseController
     {
         private readonly IAuthService _authService;
         public AuthController(IAuthService authService) 
@@ -21,7 +21,7 @@ namespace Ecommerce.API.Controllers
         {
             await _authService.RegisterAsync(dto);
 
-            return Ok("Register success");
+            return ApiSuccess("Register success");
         }
 
         [HttpPost("login")]
@@ -29,7 +29,7 @@ namespace Ecommerce.API.Controllers
         {
             var result = await _authService.LoginAsync(request);
 
-            return Ok(result);
+            return ApiSuccess(result);
         }
 
         [HttpPost("refresh")]
@@ -38,7 +38,7 @@ namespace Ecommerce.API.Controllers
         {
             var result = await _authService.RefreshTokenAsync(request);
 
-            return Ok(result);
+            return ApiSuccess(result);
         }
     }
 }

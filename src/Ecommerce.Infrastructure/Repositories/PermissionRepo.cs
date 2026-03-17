@@ -5,6 +5,7 @@ using Ecommerce.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Text;
 
 namespace Ecommerce.Infrastructure.Repositories
@@ -54,6 +55,20 @@ namespace Ecommerce.Infrastructure.Repositories
         {
             return await _context.Permissions.AnyAsync(p => p.Id == id);
             
+        }
+        public async Task AddAsync(Permission permission)
+        {
+            await _context.Permissions.AddAsync(permission);
+            await _context.SaveChangesAsync();
+        }
+        public async Task UpdateAsync(Permission permission)
+        {
+            _context.Permissions.Update(permission);
+            await _context.SaveChangesAsync();
+        }
+        public async Task SaveChangesAsync()
+        {
+            await _context.SaveChangesAsync();
         }
     }
 }

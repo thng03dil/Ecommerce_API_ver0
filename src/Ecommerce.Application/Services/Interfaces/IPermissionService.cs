@@ -11,5 +11,8 @@ namespace Ecommerce.Application.Services.Interfaces
     {
         Task<ApiResponse<PagedResponse<PermissionResponseDto>>> GetAllAsync(PaginationDto pagedto);
         Task<ApiResponse<PermissionResponseDto>> GetByIdAsync(int id);
+        Task<ApiResponse<PermissionResponseDto>> CreateAsync(PermissionCreateDto dto);
+        Task<ApiResponse<PermissionResponseDto>> UpdateAsync(int id, PermissionUpdateDto dto);
+        Task<ApiResponse<PermissionResponseDto>> DeleteAsync(int id);
     }
 }

@@ -3,16 +3,14 @@ using Ecommerce.Application.Common.Pagination;
 using Ecommerce.Application.DTOs.CategoryDtos;
 using Ecommerce.Application.Services.Interfaces;
 using Ecommerce.Domain.Common.Filters;
-using Ecommerce.Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 
 namespace Ecommerce.API.Controllers
 {
-    [ApiController]
-    [Route("api/[controller]")]
-    public class CategoriesController : Controller
+   
+    public class CategoriesController : BaseController
     {
         private readonly ICategoryService _service;
 
@@ -21,15 +19,15 @@ namespace Ecommerce.API.Controllers
             _service = service;
         }
 
-        [Permission(Permissions.ViewCategory)]
+        [Permission("category.view")]
         [HttpGet]
         public async Task<IActionResult> GetAll([FromQuery] CategoryFilterDto filter , [FromQuery] PaginationDto pagination)
         {
             var result = await _service.GetAllAsync(filter, pagination);
-            return Ok(result);
+            return ApiSuccess(result);
         }
 
-        [Permission(Permissions.ViewByIdCategory)]
+        [Permission("category.viewbyid")]
         [HttpGet("{id}")]
         public async Task<IActionResult> Get(int id)
         {
@@ -38,31 +36,31 @@ namespace Ecommerce.API.Controllers
             if (result == null)
                 return NotFound();
 
-            return Ok(result);
+            return ApiSuccess(result);
         }
-        [Permission(Permissions.CreateCategory)]
+        [Permission("category.create")]
         [HttpPost]                                                                                              
         public async Task<IActionResult> Create(CategoryCreateDto dto)
         {
           
             var result = await _service.CreateAsync(dto);
-            return Ok(result);
+            return ApiSuccess(result);
         }
-        [Permission(Permissions.UpdateCategory)]
+        [Permission("category.update")]
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] CategoryUpdateDto dto)
         {
 
             var result = await _service.UpdateAsync(id, dto);
 
-            return Ok(result);
+            return ApiSuccess(result);
         }
-        [Permission(Permissions.DeleteCategory)]
+        [Permission("categories.delete")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
             var result = await _service.DeleteAsync(id);
-            return Ok(result);
+            return ApiSuccess(result);
         }
     }
 }

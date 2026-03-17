@@ -3,15 +3,12 @@ using Ecommerce.Application.Common.Pagination;
 using Ecommerce.Application.DTOs.ProductDtos;
 using Ecommerce.Application.Services.Interfaces;
 using Ecommerce.Domain.Common.Filters;
-using Ecommerce.Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Ecommerce.API.Controllers
 {
-    [ApiController]
-    [Route("api/[controller]")]
-    public class ProductsController : Controller
+    public class ProductsController : BaseController
     {
         private readonly IProductService _service;
 
@@ -19,16 +16,16 @@ namespace Ecommerce.API.Controllers
         {
             _service = service; 
         }
-        [Permission(Permissions.ViewProduct)]
+        [Permission("product.view")]
         [HttpGet]
 
         public async Task<IActionResult> GetAll([FromQuery] ProductFilterDto filter,[FromQuery] PaginationDto pagination)
         {
             var result = await _service.GetAllAsync(filter,pagination);
-            return Ok(result);
+            return ApiSuccess(result);
         }
 
-        [Permission(Permissions.ViewByIdProduct)]
+        [Permission("product.viewbyid")]
         [HttpGet("{id}")]
         public async Task<IActionResult> Get(int id)
         {                                                                                            
@@ -36,31 +33,31 @@ namespace Ecommerce.API.Controllers
             if (product == null)
                 return NotFound();
 
-            return Ok(product);
+            return ApiSuccess(product);
         }
 
-        [Permission(Permissions.CreateProduct)]
+        [Permission("product.create")]
         [HttpPost]
         public async Task<IActionResult> Create(ProductCreateDto dto)
         {
             var result = await _service.CreateAsync(dto);
-            return Ok(result);
+            return ApiSuccess(result);
         }
 
-        [Permission(Permissions.UpdateProduct)]
+        [Permission("product.update")]
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, ProductUpdateDto dto)
         {
             var result = await _service.UpdateAsync(id, dto);
 
-            return Ok(result); 
+            return ApiSuccess(result); 
         }
-        [Permission(Permissions.DeleteProduct)]
+        [Permission("product.delete")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
             var result = await _service.DeleteAsync(id);
-            return Ok(result);
+            return ApiSuccess(result);
         }
     }
 }

@@ -3,13 +3,13 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Text;
 
-namespace Ecommerce.Application.DTOs.Role
+namespace Ecommerce.Application.DTOs.Permission
 {
-    public class RoleCreateDto
+    public class PermissionCreateDto
     {
 
-        [Required(ErrorMessage = "Role name is required")]
-        [StringLength(50, ErrorMessage = "Role name cannot exceed 50 characters")]
+        [Required(ErrorMessage = "Permission name is required")]
+        [StringLength(100, ErrorMessage = "Permission name cannot exceed 100 characters")]
         public string Name { get; set; } = string.Empty;
 
         [StringLength(200, ErrorMessage = "Description cannot exceed 200 characters")]

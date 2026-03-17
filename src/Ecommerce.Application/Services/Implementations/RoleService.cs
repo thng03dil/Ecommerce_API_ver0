@@ -6,8 +6,10 @@ using Ecommerce.Application.Exceptions;
 using Ecommerce.Application.Services.Interfaces;
 using Ecommerce.Domain.Entities;
 using Ecommerce.Domain.Interfaces;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Security;
 using System.Text;
 
 namespace Ecommerce.Application.Services.Implementations
@@ -16,13 +18,22 @@ namespace Ecommerce.Application.Services.Implementations
     {
         private readonly IRoleRepo _roleRepo;
         private readonly IPermissionRepo _permissionRepo;
-        public RoleService(IRoleRepo roleRepo, IPermissionRepo permissionRepo)
+        private readonly ILogger<RoleService> _logger;
+        public RoleService(
+            IRoleRepo roleRepo,
+            IPermissionRepo permissionRepo,
+            ILogger<RoleService> logger)
         {
             _roleRepo = roleRepo;
             _permissionRepo = permissionRepo;
+            _logger = logger;
         }
         public async Task<ApiResponse<PagedResponse<RoleResponseDto>>> GetAllAsync(PaginationDto pagedto)
         {
+            _logger.LogInformation(
+                      "Get roles request Page:{Page} Size:{Size}",
+                      pagedto.PageNumber,
+                      pagedto.PageSize);
             var (roles, totalCount) = await _roleRepo.GetAllAsync(pagedto);
 
             var data = roles.Select(r => MapToResponseDto(r)).ToList();
@@ -37,8 +48,14 @@ namespace Ecommerce.Application.Services.Implementations
         }
         public async Task<ApiResponse<RoleWithPermissionsDto>> GetByIdAsync(int id)
         {
+            _logger.LogInformation("Get role by id {RoleId}", id);
             var role = await _roleRepo.GetByIdWithPermissionsAsync(id);
-            if (role == null) throw new NotFoundException("Role not found");
+            if (role == null)
+            {
+                _logger.LogWarning("Update failed: permission not found {PermissionId}", id);
+
+                throw new NotFoundException("Role not found");
+            }
 
             var dto = new RoleWithPermissionsDto
             {
@@ -58,9 +75,12 @@ namespace Ecommerce.Application.Services.Implementations
 
         public async Task<ApiResponse<RoleResponseDto>> CreateAsync(RoleCreateDto dto)
         {
+            _logger.LogInformation("Create role {Name}", dto.Name);
             if (await _roleRepo.ExistsByNameAsync(dto.Name))
+            {
+                _logger.LogWarning("Create fail: Role {Name} already exists", dto.Name);
                 throw new BusinessException("Role name already exists");
-
+            }
             var role = new Role
             {
                 Name = dto.Name,
@@ -68,6 +88,7 @@ namespace Ecommerce.Application.Services.Implementations
             };
 
             await _roleRepo.AddAsync(role);
+
             return ApiResponse<RoleResponseDto>.SuccessResponse(MapToResponseDto(role), "Created successfully");
         }
         public async Task<ApiResponse<RoleResponseDto>> UpdateAsync(int id, RoleUpdateDto dto)

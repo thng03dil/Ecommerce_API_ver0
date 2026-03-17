@@ -15,7 +15,7 @@ namespace Ecommerce.Infrastructure.Data.Configurations
             builder.HasKey(r => r.Id);
 
             builder.Property(r => r.Name)
-                .IsRequired()
+                .IsRequired() 
                 .HasMaxLength(50);
 
             builder.HasIndex(r => r.Name)

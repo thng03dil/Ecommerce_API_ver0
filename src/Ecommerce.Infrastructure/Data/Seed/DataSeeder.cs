@@ -1,5 +1,4 @@
 ﻿using Ecommerce.Application.DTOs;
-using Ecommerce.Domain.Constants;
 using Ecommerce.Domain.Entities;
 using Ecommerce.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -26,10 +25,10 @@ namespace Ecommerce.Infrastructure.Data.Seed
             // assign basic permissions to User role
             var userPermNames = new List<string>
             {
-                Permissions.ViewProduct,
-                Permissions.ViewByIdProduct,
-                Permissions.ViewCategory,
-                Permissions.ViewByIdCategory
+                "product.view",
+               "product.viewbyid",
+                "category.view",
+                "category.viewbyid"
             };
 
             var userPermIds = await context.Permissions

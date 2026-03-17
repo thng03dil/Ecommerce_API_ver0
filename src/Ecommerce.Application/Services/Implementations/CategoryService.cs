@@ -21,7 +21,7 @@ namespace Ecommerce.Application.Services.Implementations
             _categoryRepo = categoryRepo;
             _logger = logger;
         }
-
+        
         public async Task<ApiResponse<PagedResponse<CategoryResponseDto>>> GetAllAsync(CategoryFilterDto filter, PaginationDto pagination)
         {
             _logger.LogInformation(

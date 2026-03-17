@@ -12,5 +12,8 @@ namespace Ecommerce.Domain.Interfaces
         Task<Permission?> GetByIdAsync(int id);
         Task<bool> AllIdsExistAsync(List<int> ids);
         Task<bool> IsPermissionIdExistAsync(int id);
+        Task AddAsync(Permission permission);
+        Task UpdateAsync(Permission permission);
+        Task SaveChangesAsync();
     }
 }
