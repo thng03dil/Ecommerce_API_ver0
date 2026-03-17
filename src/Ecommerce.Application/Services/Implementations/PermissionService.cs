@@ -1,4 +1,4 @@
-﻿using Ecommerce.Application.Common.Pagination;
+using Ecommerce.Application.Common.Pagination;
 using Ecommerce.Application.Common.Responses;
 using Ecommerce.Application.DTOs.Permission;
 using Ecommerce.Application.Exceptions;
@@ -15,13 +15,16 @@ namespace Ecommerce.Application.Services.Implementations
     public class PermissionService : IPermissionService
     {
         private readonly IPermissionRepo _permissionRepo;
+        private readonly IRoleRepo _roleRepo;
 
         private readonly ILogger<PermissionService> _logger;
         public PermissionService( 
             IPermissionRepo permissionRepo,
+            IRoleRepo roleRepo,
             ILogger<PermissionService> logger)
         {
             _permissionRepo = permissionRepo;
+            _roleRepo = roleRepo;
             _logger = logger;
         }
         public async Task<ApiResponse<PagedResponse<PermissionResponseDto>>> GetAllAsync(PaginationDto pagedto)
@@ -52,27 +55,48 @@ namespace Ecommerce.Application.Services.Implementations
                 _logger.LogWarning("Update failed: permission not found {PermissionId}", id);
                 throw new NotFoundException("Permission not found");
             }
-            var dto = new PermissionResponseDto
-            {
-                Id = permission.Id,
-                Name = permission.Name,
-                Description = permission.Description,
-                
-            };
-
-            return ApiResponse<PermissionResponseDto>.SuccessResponse(dto);
+            return ApiResponse<PermissionResponseDto>.SuccessResponse(MapToResponseDto(permission));
         }
 
         public async Task<ApiResponse<PermissionResponseDto>> CreateAsync(PermissionCreateDto dto)
         {
-            _logger.LogInformation("Create permission {Name}", dto.Name);
+            var entity = (dto.Entity ?? string.Empty).Trim().ToLowerInvariant();
+            var action = (dto.Action ?? string.Empty).Trim().ToLowerInvariant();
+
+            if (string.IsNullOrWhiteSpace(entity) || string.IsNullOrWhiteSpace(action))
+                throw new BusinessException("Entity and Action are required.");
+
+            var name = $"{entity}.{action}";
+
+            _logger.LogInformation("Create permission {PermissionName}", name);
+
+            if (await _permissionRepo.ExistsByEntityActionAsync(entity, action))
+                throw new BusinessException("Permission already exists (Entity + Action must be unique).");
+
             var permission = new Permission
             {
-                Name = dto.Name,
-                Description = dto.Description,
+                Entity = entity,
+                Action = action,
+                Name = name,
+                Description = dto.Description?.Trim() ?? string.Empty,
                 CreatedAt = DateTime.UtcNow
             };
             await _permissionRepo.AddAsync(permission);
+
+            // Auto-assign new permission to Admin role (highest role).
+            var adminRole = await _roleRepo.GetByNameRoleAsync("Admin");
+            if (adminRole != null)
+            {
+                var alreadyAssigned = await _permissionRepo.RolePermissionExistsAsync(adminRole.Id, permission.Id);
+                if (!alreadyAssigned)
+                {
+                    await _permissionRepo.AddRolePermissionAsync(new RolePermission
+                    {
+                        RoleId = adminRole.Id,
+                        PermissionId = permission.Id
+                    });
+                }
+            }
 
             _logger.LogInformation("Permission created {PermissionId}", permission.Id);
 
@@ -92,8 +116,19 @@ namespace Ecommerce.Application.Services.Implementations
                 _logger.LogWarning("Update failed: permission not found {PermissionId}", id);
                 throw new NotFoundException("Permission not found");
             }
-            permission.Name = dto.Name;
-            permission.Description = dto.Description;
+            var entity = (dto.Entity ?? string.Empty).Trim().ToLowerInvariant();
+            var action = (dto.Action ?? string.Empty).Trim().ToLowerInvariant();
+
+            if (string.IsNullOrWhiteSpace(entity) || string.IsNullOrWhiteSpace(action))
+                throw new BusinessException("Entity and Action are required.");
+
+            if (await _permissionRepo.ExistsByEntityActionAsync(entity, action, excludePermissionId: id))
+                throw new BusinessException("Permission already exists (Entity + Action must be unique).");
+
+            permission.Entity = entity;
+            permission.Action = action;
+            permission.Name = $"{entity}.{action}";
+            permission.Description = dto.Description?.Trim() ?? string.Empty;
             permission.UpdatedAt = DateTime.UtcNow;
 
             await _permissionRepo.UpdateAsync(permission);
@@ -118,9 +153,21 @@ namespace Ecommerce.Application.Services.Implementations
                 throw new NotFoundException("Permission not found");
             }
 
+            // Step 1: Protect system permissions
+            if (permission.IsSystem)
+                throw new BusinessException("Không thể xóa quyền hệ thống");
+
+            // Step 2: Allow delete even if Admin holds it, but block if any non-Admin role is using it.
+            if (await _permissionRepo.IsAssignedToAnyNonAdminRoleAsync(permission.Id))
+                throw new BusinessException("Quyền này đang được gán cho các vai trò người dùng. Hãy gỡ quyền trước khi xóa");
+
+            // Step 3: Soft delete
             permission.IsDeleted = true;
 
             await _permissionRepo.SaveChangesAsync();
+
+            // Step 4: Hard delete role-permission mappings to keep DB clean.
+            await _permissionRepo.HardDeleteRolePermissionsByPermissionIdAsync(permission.Id);
 
             _logger.LogInformation("Permission deleted {PermissionId}", permission.Id);
 
@@ -134,6 +181,8 @@ namespace Ecommerce.Application.Services.Implementations
         {
             Id = p.Id,
             Name = p.Name,
+            Entity = p.Entity,
+            Action = p.Action,
             Description = p.Description,
             CreatedAt = p.CreatedAt,
             UpdatedAt = p.UpdatedAt

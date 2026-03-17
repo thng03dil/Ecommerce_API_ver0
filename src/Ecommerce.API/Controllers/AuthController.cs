@@ -1,9 +1,11 @@
-﻿using Azure.Core;
+using Azure.Core;
 using Ecommerce.Application.Services.Interfaces;
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
 using Ecommerce.Application.DTOs.Auth;
 using Ecommerce.Application.DTOs.Common;
+using Microsoft.AspNetCore.Authorization;
+using Ecommerce.Application.Extensions;
 
 namespace Ecommerce.API.Controllers
 {
@@ -21,7 +23,7 @@ namespace Ecommerce.API.Controllers
         {
             await _authService.RegisterAsync(dto);
 
-            return ApiSuccess("Register success");
+            return OkResponse("Register success");
         }
 
         [HttpPost("login")]
@@ -29,7 +31,7 @@ namespace Ecommerce.API.Controllers
         {
             var result = await _authService.LoginAsync(request);
 
-            return ApiSuccess(result);
+            return OkResponse(result);
         }
 
         [HttpPost("refresh")]
@@ -38,7 +40,25 @@ namespace Ecommerce.API.Controllers
         {
             var result = await _authService.RefreshTokenAsync(request);
 
-            return ApiSuccess(result);
+            return OkResponse(result);
+        }
+
+        [Authorize]
+        [HttpGet("me")]
+        public async Task<IActionResult> Me()
+        {
+            var userId = User.GetUserId();
+            var result = await _authService.GetMeAsync(userId);
+            return OkResponse(result);
+        }
+
+        [Authorize]
+        [HttpPost("logout")]
+        public async Task<IActionResult> Logout()
+        {
+            var userId = User.GetUserId();
+            await _authService.LogoutAsync(userId);
+            return OkResponse("Logged out successfully");
         }
     }
 }

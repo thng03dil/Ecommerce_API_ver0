@@ -1,4 +1,4 @@
-﻿using Ecommerce.Infrastructure.Data;
+using Ecommerce.Infrastructure.Data;
 using Ecommerce.Application.Common.Pagination;
 using Ecommerce.Application.Extensions;
 using Ecommerce.Domain.Entities;
@@ -48,6 +48,11 @@ namespace Ecommerce.Infrastructure.Repositories
         {
             return await _context.Categories
                 .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
+        }
+
+        public async Task<bool> HasActiveProductsAsync(int categoryId)
+        {
+            return await _context.Products.AnyAsync(p => p.CategoryId == categoryId && !p.IsDeleted);
         }
         public async Task<bool> SlugExistsAsync(string slug, int excludeId)
         {

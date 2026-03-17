@@ -1,4 +1,4 @@
-﻿using Ecommerce.Application.Authorization;
+using Ecommerce.Application.Authorization;
 using Ecommerce.Application.Common.Pagination;
 using Ecommerce.Application.DTOs.ProductDtos;
 using Ecommerce.Application.Services.Interfaces;
@@ -16,16 +16,16 @@ namespace Ecommerce.API.Controllers
         {
             _service = service; 
         }
-        [Permission("product.view")]
+        [Permission("product.read")]
         [HttpGet]
 
         public async Task<IActionResult> GetAll([FromQuery] ProductFilterDto filter,[FromQuery] PaginationDto pagination)
         {
             var result = await _service.GetAllAsync(filter,pagination);
-            return ApiSuccess(result);
+            return OkResponse(result);
         }
 
-        [Permission("product.viewbyid")]
+        [Permission("product.read")]
         [HttpGet("{id}")]
         public async Task<IActionResult> Get(int id)
         {                                                                                            
@@ -33,7 +33,7 @@ namespace Ecommerce.API.Controllers
             if (product == null)
                 return NotFound();
 
-            return ApiSuccess(product);
+            return OkResponse(product);
         }
 
         [Permission("product.create")]
@@ -41,7 +41,7 @@ namespace Ecommerce.API.Controllers
         public async Task<IActionResult> Create(ProductCreateDto dto)
         {
             var result = await _service.CreateAsync(dto);
-            return ApiSuccess(result);
+            return OkResponse(result);
         }
 
         [Permission("product.update")]
@@ -50,14 +50,14 @@ namespace Ecommerce.API.Controllers
         {
             var result = await _service.UpdateAsync(id, dto);
 
-            return ApiSuccess(result); 
+            return OkResponse(result); 
         }
         [Permission("product.delete")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
             var result = await _service.DeleteAsync(id);
-            return ApiSuccess(result);
+            return OkResponse(result);
         }
     }
 }

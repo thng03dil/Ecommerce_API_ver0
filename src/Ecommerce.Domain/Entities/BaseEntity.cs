@@ -1,4 +1,4 @@
-﻿namespace Ecommerce.Domain.Entities
+namespace Ecommerce.Domain.Entities
 {
     public abstract class BaseEntity
     {
@@ -8,7 +8,7 @@
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        public DateTime? UpdatedAt { get; set; } 
+        public DateTime? UpdatedAt { get; set; }
 
     } 
 }

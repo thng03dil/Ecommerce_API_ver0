@@ -1,4 +1,4 @@
-﻿using Ecommerce.Application.Authorization;
+using Ecommerce.Application.Authorization;
 using Ecommerce.Application.Common.Pagination;
 using Ecommerce.Application.DTOs.Role;
 using Ecommerce.Application.Services.Interfaces;
@@ -21,19 +21,19 @@ namespace Ecommerce.API.Controllers
         }
 
         [HttpGet]
-        [Permission("role.view")]
+        [Permission("role.read")]
         public async Task<IActionResult> GetAll([FromQuery] PaginationDto pagination)
         {
             var result = await _roleService.GetAllAsync(pagination);
-            return ApiSuccess(result);
+            return OkResponse(result);
         }
 
         [HttpGet("{id}")]
-        [Permission("role.viewbyid")]
+        [Permission("role.read")]
         public async Task<IActionResult> GetById(int id)
         {
             var result = await _roleService.GetByIdAsync(id);
-            return ApiSuccess(result);
+            return OkResponse(result);
         }
 
         [HttpPost]
@@ -41,7 +41,7 @@ namespace Ecommerce.API.Controllers
         public async Task<IActionResult> Create([FromBody] RoleCreateDto dto)
         {
             var result = await _roleService.CreateAsync(dto);
-            return ApiSuccess(result);
+            return OkResponse(result);
         }
 
         [HttpPut("{id}")]
@@ -49,7 +49,7 @@ namespace Ecommerce.API.Controllers
         public async Task<IActionResult> Update(int id, [FromBody] RoleUpdateDto dto)
         {
             var result = await _roleService.UpdateAsync(id, dto);
-            return ApiSuccess(result);
+            return OkResponse(result);
         }
 
         [HttpPost("assign-permissions")]
@@ -57,7 +57,7 @@ namespace Ecommerce.API.Controllers
         public async Task<IActionResult> AssignPermissions([FromBody] AssignPermissionsDto dto)
         {
             var result = await _roleService.AssignPermissionsAsync(dto);
-            return ApiSuccess(result);
+            return OkResponse(result);
         }
 
         [HttpDelete("{id}")]
@@ -65,7 +65,7 @@ namespace Ecommerce.API.Controllers
         public async Task<IActionResult> Delete(int id)
         {
             var result = await _roleService.DeleteAsync(id);
-            return ApiSuccess(result);
+            return OkResponse(result);
         }
     }
 }

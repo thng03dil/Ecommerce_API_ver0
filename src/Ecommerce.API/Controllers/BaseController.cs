@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -10,10 +10,8 @@ namespace Ecommerce.API.Controllers
     [Route("api/[controller]")]
     public abstract class BaseController : ControllerBase
     {
-        // Lazy-resolved logger to avoid polluting child controllers' constructors
         protected ILogger<BaseController> Logger => HttpContext.RequestServices.GetRequiredService<ILogger<BaseController>>();
 
-        // Current user id (stored as int in JWT NameIdentifier claim)
         protected int CurrentUserId
         {
             get
@@ -23,11 +21,9 @@ namespace Ecommerce.API.Controllers
             }
         }
 
-        // Current user role from JWT Role claim
         protected string CurrentUserRole => User?.FindFirst(ClaimTypes.Role)?.Value ?? string.Empty;
 
-        // Standardized success response
-        protected IActionResult ApiSuccess<T>(T data, string message = "Success")
+        protected IActionResult OkResponse<T>(T data, string message = "Success")
         {
             return Ok(new
             {
@@ -38,8 +34,7 @@ namespace Ecommerce.API.Controllers
             });
         }
 
-        // Standardized error response
-        protected IActionResult ApiError(string message, int statusCode = 400)
+        protected IActionResult ErrorResponse(string message, int statusCode = 400)
         {
             return StatusCode(statusCode, new
             {

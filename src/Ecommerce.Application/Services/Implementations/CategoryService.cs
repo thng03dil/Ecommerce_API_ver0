@@ -1,4 +1,4 @@
-﻿
+
 using Ecommerce.Application.Common.Pagination;
 using Ecommerce.Application.Common.Responses;
 using Ecommerce.Application.DTOs.CategoryDtos;
@@ -115,6 +115,12 @@ namespace Ecommerce.Application.Services.Implementations
             {
                 _logger.LogWarning("Delete failed: category not found {CategoryId}", id);
                 throw new NotFoundException("Category not found");
+            }
+
+            // Business rule: cannot delete a category that still has active products.
+            if (await _categoryRepo.HasActiveProductsAsync(id))
+            {
+                throw new BusinessException("Cannot delete this category because it still contains products.");
             }
 
             category.IsDeleted = true;

@@ -1,4 +1,4 @@
-﻿using Ecommerce.Application.Common.Pagination;
+using Ecommerce.Application.Common.Pagination;
 using Ecommerce.Application.Common.Responses;
 using Ecommerce.Application.DTOs.Permission;
 using Ecommerce.Application.DTOs.Role;
@@ -88,6 +88,16 @@ namespace Ecommerce.Application.Services.Implementations
             };
 
             await _roleRepo.AddAsync(role);
+
+            if (dto.PermissionIds != null && dto.PermissionIds.Any())
+            {
+                // Reuse existing business rules for assigning permissions.
+                await AssignPermissionsAsync(new AssignPermissionsDto
+                {
+                    RoleId = role.Id,
+                    PermissionIds = dto.PermissionIds
+                });
+            }
 
             return ApiResponse<RoleResponseDto>.SuccessResponse(MapToResponseDto(role), "Created successfully");
         }

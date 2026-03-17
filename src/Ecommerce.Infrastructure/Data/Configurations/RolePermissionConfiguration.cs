@@ -1,4 +1,4 @@
-﻿using Ecommerce.Domain.Entities;
+using Ecommerce.Domain.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -14,6 +14,8 @@ namespace Ecommerce.Infrastructure.Data.Configurations
             builder.ToTable("RolePermissions");
 
             builder.HasKey(rp => new { rp.RoleId, rp.PermissionId });
+
+            builder.HasQueryFilter(rp => !rp.Permission.IsDeleted);
 
             builder.HasOne(rp => rp.Role)
                 .WithMany(r => r.RolePermissions)

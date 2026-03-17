@@ -1,4 +1,4 @@
-﻿using Ecommerce.API.Middleware;
+using Ecommerce.API.Middleware;
 using Ecommerce.Application.Authorization;
 using Ecommerce.Application.Common.Responses;
 using Ecommerce.Application.Services.Implementations;

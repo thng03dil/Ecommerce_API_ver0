@@ -1,4 +1,4 @@
-﻿using Azure.Core;
+using Azure.Core;
 using Ecommerce.Application.Common.Pagination;
 using Ecommerce.Domain.Entities;
 using Ecommerce.Domain.Interfaces;
@@ -36,6 +36,16 @@ namespace Ecommerce.Infrastructure.Repositories
             return await _context.Users
                 .AsNoTracking()
                 .Include(c => c.Role)
+                .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
+        }
+
+        public async Task<User?> GetByIdWithPermissionsAsync(int id)
+        {
+            return await _context.Users
+                .AsNoTracking()
+                .Include(u => u.Role)
+                .ThenInclude(r => r.RolePermissions)
+                .ThenInclude(rp => rp.Permission)
                 .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
         }
         public async Task<User?> GetByIdForUpdateAsync(int id)

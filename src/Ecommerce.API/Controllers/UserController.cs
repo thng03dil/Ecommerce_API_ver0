@@ -1,4 +1,4 @@
-﻿using Ecommerce.Application.Authorization;
+using Ecommerce.Application.Authorization;
 using Ecommerce.Application.Common.Pagination;
 using Ecommerce.Application.DTOs.User;
 using Ecommerce.Application.Extensions;
@@ -21,18 +21,18 @@ namespace Ecommerce.API.Controllers
         }
 
         [HttpGet]
-        [Permission("user.view")]
+        [Permission("user.read")]
         public async Task<IActionResult> GetAll([FromQuery] PaginationDto pagedto)
         {
             var result = await _userService.GetAllAsync(pagedto);
-            return ApiSuccess(result);
+            return OkResponse(result);
         }
         [HttpGet("{id}")]
-        [Permission("user.viewbyid")]
+        [Permission("user.read")]
         public async Task<IActionResult> GetById(int id)
         {
             var result = await _userService.GetByIdAsync(id);
-            return ApiSuccess(result);
+            return OkResponse(result);
         }
 
         [HttpPut("{id}")]
@@ -41,7 +41,7 @@ namespace Ecommerce.API.Controllers
         {
             int adminId = User.GetUserId();
             var result = await _userService.UpdateAsync(id, dto, adminId);
-            return ApiSuccess(result);
+            return OkResponse(result);
         }
 
 
@@ -51,7 +51,7 @@ namespace Ecommerce.API.Controllers
         {
             int adminId = User.GetUserId();
             var result = await _userService.DeleteAsync(id, adminId);
-            return ApiSuccess(result);
+            return OkResponse(result);
         }
     }
 }

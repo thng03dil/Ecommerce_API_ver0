@@ -1,4 +1,4 @@
-﻿
+
 using Ecommerce.Application.DTOs.Auth;
 using Ecommerce.Application.DTOs.Common;
 using Ecommerce.Application.Exceptions;
@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Security.Claims;
+using System.Linq;
 
 namespace Ecommerce.Application.Services.Implementations
 {
@@ -150,6 +151,56 @@ namespace Ecommerce.Application.Services.Implementations
                 RefreshToken = newRefreshToken,
                 ExpiresIn = _jwtSettings.ExpiryMinutes * 60
             };
+        }
+
+        public async Task<bool> HasPermissionAsync(int userId, string permission)
+        {
+            if (userId <= 0) return false;
+            if (string.IsNullOrWhiteSpace(permission)) return false;
+
+            var user = await _userRepo.GetByIdWithPermissionsAsync(userId);
+            if (user?.Role?.RolePermissions == null) return false;
+
+            var normalized = permission.Trim().ToLowerInvariant();
+            return user.Role.RolePermissions.Any(rp => rp.Permission.Name == normalized);
+        }
+
+        public async Task<UserMeResponseDto> GetMeAsync(int userId)
+        {
+            if (userId <= 0) throw new UnauthorizedException("Unauthorized");
+
+            var user = await _userRepo.GetByIdWithPermissionsAsync(userId);
+            if (user == null) throw new NotFoundException("User not found");
+
+            var permissions = user.Role?.RolePermissions?
+                .Select(rp => rp.Permission.Name)
+                .Distinct()
+                .OrderBy(x => x)
+                .ToList() ?? new List<string>();
+
+            return new UserMeResponseDto
+            {
+                Id = user.Id,
+                Email = user.Email,
+                Role = user.Role?.Name ?? string.Empty,
+                Permissions = permissions,
+                CreatedAt = user.CreatedAt
+            };
+        }
+
+        public async Task LogoutAsync(int userId)
+        {
+            if (userId <= 0) throw new UnauthorizedException("Unauthorized");
+
+            var user = await _userRepo.GetByIdForUpdateAsync(userId);
+            if (user == null) throw new NotFoundException("User not found");
+
+         
+            user.RefreshToken = null;
+            user.RefreshTokenExpiryTime = null;
+            user.UpdatedAt = DateTime.UtcNow;
+
+            await _userRepo.UpdateAsync(user);
         }
     }
 }

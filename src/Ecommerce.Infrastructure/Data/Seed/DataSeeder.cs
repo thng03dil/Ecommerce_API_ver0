@@ -1,4 +1,4 @@
-﻿using Ecommerce.Application.DTOs;
+using Ecommerce.Application.DTOs;
 using Ecommerce.Domain.Entities;
 using Ecommerce.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -9,7 +9,7 @@ namespace Ecommerce.Infrastructure.Data.Seed
     {
         public static async Task SeedAdminAsync(AppDbContext context)
         {
-            // assign full permissions to Admin role
+            // Assign full permissions to Admin role (Admin is the highest role).
             var allPermissionIds = await context.Permissions.Select(p => p.Id).ToListAsync();
             var currentAdminPIds = await context.RolePermissions
                 .Where(rp => rp.RoleId == 1) // 1 là Admin
@@ -22,13 +22,11 @@ namespace Ecommerce.Infrastructure.Data.Seed
                 context.RolePermissions.Add(new RolePermission { RoleId = 1, PermissionId = pId });
             }
 
-            // assign basic permissions to User role
+            // Assign basic permissions to User role (read-only).
             var userPermNames = new List<string>
             {
-                "product.view",
-               "product.viewbyid",
-                "category.view",
-                "category.viewbyid"
+                "product.read",
+                "category.read"
             };
 
             var userPermIds = await context.Permissions
@@ -49,7 +47,7 @@ namespace Ecommerce.Infrastructure.Data.Seed
 
             await context.SaveChangesAsync();
 
-            //sedd admin user
+            // Seed admin user (for local/dev usage)
             if (!await context.Users.AnyAsync(u => u.Email == "admin@shop.com"))
             {
                 context.Users.Add(new User
