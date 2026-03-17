@@ -21,13 +21,25 @@ namespace Ecommerce.Infrastructure.SecurityHelpers
 
         public string GenerateAccessToken(User user)
         {
-            var claims = new[]
+            var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new Claim(ClaimTypes.Email, user.Email),
-                new Claim(ClaimTypes.Role, user.Role) 
+                new Claim(ClaimTypes.Role, user.Role.Name)
+
             };
-             
+
+            if (user.Role.RolePermissions != null)
+            {
+                var permissions = user.Role.RolePermissions
+                    .Select(rp => rp.Permission.Name);
+
+                foreach (var permissionName in permissions)
+                {
+                    claims.Add(new Claim("permissions", permissionName));
+                }
+            }
+
             var key = new SymmetricSecurityKey(
                 Encoding.UTF8.GetBytes(_jwtSettings.Key));
 
@@ -66,7 +78,7 @@ namespace Ecommerce.Infrastructure.SecurityHelpers
                 ValidateIssuer = true,
                 ValidateAudience = true,
                 ValidateIssuerSigningKey = true,
-                ValidateLifetime = false, // cho phép token hết hạn
+                ValidateLifetime = false, // allow expired tokens
 
                 ValidIssuer = _jwtSettings.Issuer,
                 ValidAudience = _jwtSettings.Audience,

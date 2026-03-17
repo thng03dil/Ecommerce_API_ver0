@@ -1,10 +1,11 @@
-﻿using Microsoft.AspNetCore.Mvc;
-
-using Ecommerce.Application.Services.Interfaces;
-using Ecommerce.Application.DTOs.ProductDtos;
-using Ecommerce.Domain.Common.Filters;
+﻿using Ecommerce.Application.Authorization;
 using Ecommerce.Application.Common.Pagination;
+using Ecommerce.Application.DTOs.ProductDtos;
+using Ecommerce.Application.Services.Interfaces;
+using Ecommerce.Domain.Common.Filters;
+using Ecommerce.Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Ecommerce.API.Controllers
 {
@@ -18,14 +19,16 @@ namespace Ecommerce.API.Controllers
         {
             _service = service; 
         }
-
+        [Permission(Permissions.ViewProduct)]
         [HttpGet]
+
         public async Task<IActionResult> GetAll([FromQuery] ProductFilterDto filter,[FromQuery] PaginationDto pagination)
         {
             var result = await _service.GetAllAsync(filter,pagination);
             return Ok(result);
         }
 
+        [Permission(Permissions.ViewByIdProduct)]
         [HttpGet("{id}")]
         public async Task<IActionResult> Get(int id)
         {                                                                                            
@@ -36,7 +39,7 @@ namespace Ecommerce.API.Controllers
             return Ok(product);
         }
 
-        [Authorize]
+        [Permission(Permissions.CreateProduct)]
         [HttpPost]
         public async Task<IActionResult> Create(ProductCreateDto dto)
         {
@@ -44,7 +47,7 @@ namespace Ecommerce.API.Controllers
             return Ok(result);
         }
 
-        [Authorize]
+        [Permission(Permissions.UpdateProduct)]
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, ProductUpdateDto dto)
         {
@@ -52,7 +55,7 @@ namespace Ecommerce.API.Controllers
 
             return Ok(result); 
         }
-        [Authorize]
+        [Permission(Permissions.DeleteProduct)]
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {

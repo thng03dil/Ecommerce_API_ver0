@@ -100,7 +100,7 @@ namespace Ecommerce.Application.Services.Implementations
             var product = await _productRepo.GetByIdAsync(id);
             if (product == null)
             {
-                _logger.LogWarning("Update failed product not found {ProductId}", id);
+                _logger.LogWarning("Update failed:product not found {ProductId}", id);
                 throw new NotFoundException("Product not found");
             }
 
@@ -143,7 +143,7 @@ namespace Ecommerce.Application.Services.Implementations
 
             if (product == null)
             {
-                _logger.LogWarning("Delete failed product not found {ProductId}", id);
+                _logger.LogWarning("Delete failed: product not found {ProductId}", id);
                 throw new NotFoundException("Product not found");
             }
 

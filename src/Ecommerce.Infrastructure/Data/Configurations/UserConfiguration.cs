@@ -23,14 +23,20 @@ namespace Ecommerce.Infrastructure.Data.Configurations
                 .IsRequired()
                 .HasMaxLength(255);
 
-            builder.Property(x => x.Role)
-                .IsRequired()
-                .HasMaxLength(20);
-
+            builder.Property(x => x.RoleId)
+           .IsRequired();
 
             builder.Property(x => x.CreatedAt)
-                .HasDefaultValueSql("GETDATE()");
-           
+              .IsRequired()
+              .HasDefaultValueSql("GETDATE()");
+
+            builder.Property(x => x.UpdatedAt)
+                .IsRequired(false);
+
+            builder.HasOne(u => u.Role)
+                 .WithMany(r => r.Users)       
+                 .HasForeignKey(u => u.RoleId)  
+                 .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

@@ -55,7 +55,7 @@ namespace Ecommerce.Application.Services.Implementations
             var item = MapToResponseDto(category);
             return ApiResponse<CategoryResponseDto?>.SuccessResponse(
                      item,
-                     "Create data successfully"
+                     "Get data successfully"
                     );
         }
 
@@ -87,7 +87,7 @@ namespace Ecommerce.Application.Services.Implementations
             var category = await _categoryRepo.GetByIdForUpdateAsync(id);
             if (category == null)
             {
-                _logger.LogWarning("Update failed category not found {CategoryId}", id);
+                _logger.LogWarning("Update failed:category not found {CategoryId}", id);
                 throw new NotFoundException("Category not found");
             }
             category.Name = dto.Name;
@@ -113,9 +113,10 @@ namespace Ecommerce.Application.Services.Implementations
 
             if (category == null)
             {
-                _logger.LogWarning("Delete failed category not found {CategoryId}", id);
+                _logger.LogWarning("Delete failed: category not found {CategoryId}", id);
                 throw new NotFoundException("Category not found");
             }
+
             category.IsDeleted = true;
 
             await _categoryRepo.SaveChangesAsync();

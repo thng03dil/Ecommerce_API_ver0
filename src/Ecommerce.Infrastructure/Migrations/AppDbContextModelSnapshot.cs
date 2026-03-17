@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace Ecommerce.API.Migrations
+namespace Ecommerce.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
     partial class AppDbContextModelSnapshot : ModelSnapshot
@@ -17,7 +17,7 @@ namespace Ecommerce.API.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.25")
+                .HasAnnotation("ProductVersion", "10.0.5")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -27,7 +27,7 @@ namespace Ecommerce.API.Migrations
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
-                     
+
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("CreatedAt")
@@ -89,6 +89,147 @@ namespace Ecommerce.API.Migrations
                             IsDeleted = false,
                             Name = "Phụ kiện",
                             Slug = "phu-kien"
+                        });
+                });
+
+            modelBuilder.Entity("Ecommerce.Domain.Entities.Permission", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("Permissions", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Description = "View product list",
+                            Name = "product.view"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            Description = "View product details",
+                            Name = "product.viewbyid"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            Description = "Create new products",
+                            Name = "product.create"
+                        },
+                        new
+                        {
+                            Id = 4,
+                            Description = "Update existing products",
+                            Name = "product.update"
+                        },
+                        new
+                        {
+                            Id = 5,
+                            Description = "Delete products",
+                            Name = "product.delete"
+                        },
+                        new
+                        {
+                            Id = 6,
+                            Description = "View category list",
+                            Name = "category.view"
+                        },
+                        new
+                        {
+                            Id = 7,
+                            Description = "View category details",
+                            Name = "category.viewbyid"
+                        },
+                        new
+                        {
+                            Id = 8,
+                            Description = "Create new categories",
+                            Name = "category.create"
+                        },
+                        new
+                        {
+                            Id = 9,
+                            Description = "Update existing categories",
+                            Name = "category.update"
+                        },
+                        new
+                        {
+                            Id = 10,
+                            Description = "Delete categories",
+                            Name = "categories.delete"
+                        },
+                        new
+                        {
+                            Id = 11,
+                            Description = "View user list",
+                            Name = "user.view"
+                        },
+                        new
+                        {
+                            Id = 12,
+                            Description = "View user details",
+                            Name = "user.viewbyid"
+                        },
+                        new
+                        {
+                            Id = 13,
+                            Description = "Update user information",
+                            Name = "user.update"
+                        },
+                        new
+                        {
+                            Id = 14,
+                            Description = "Remove users",
+                            Name = "user.delete"
+                        },
+                        new
+                        {
+                            Id = 15,
+                            Description = "View role list",
+                            Name = "role.view"
+                        },
+                        new
+                        {
+                            Id = 16,
+                            Description = "View role details",
+                            Name = "role.viewbyid"
+                        },
+                        new
+                        {
+                            Id = 17,
+                            Description = "Create new roles",
+                            Name = "role.create"
+                        },
+                        new
+                        {
+                            Id = 18,
+                            Description = "Update role permissions",
+                            Name = "role.update"
+                        },
+                        new
+                        {
+                            Id = 19,
+                            Description = "Delete roles",
+                            Name = "role.delete"
                         });
                 });
 
@@ -209,6 +350,75 @@ namespace Ecommerce.API.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Ecommerce.Domain.Entities.Role", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETDATE()");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("Roles", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "System administrator with full access",
+                            IsDeleted = false,
+                            Name = "Admin"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Registered user with limited access",
+                            IsDeleted = false,
+                            Name = "User"
+                        });
+                });
+
+            modelBuilder.Entity("Ecommerce.Domain.Entities.RolePermission", b =>
+                {
+                    b.Property<int>("RoleId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PermissionId")
+                        .HasColumnType("int");
+
+                    b.HasKey("RoleId", "PermissionId");
+
+                    b.HasIndex("PermissionId");
+
+                    b.ToTable("RolePermissions", (string)null);
+                });
+
             modelBuilder.Entity("Ecommerce.Domain.Entities.User", b =>
                 {
                     b.Property<int>("Id")
@@ -227,7 +437,7 @@ namespace Ecommerce.API.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<bool>("EmailVerified")
+                    b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
                     b.Property<string>("PasswordHash")
@@ -241,15 +451,18 @@ namespace Ecommerce.API.Migrations
                     b.Property<DateTime?>("RefreshTokenExpiryTime")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("Role")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                    b.Property<int>("RoleId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
 
                     b.HasKey("Id");
 
                     b.HasIndex("Email")
                         .IsUnique();
+
+                    b.HasIndex("RoleId");
 
                     b.ToTable("Users", (string)null);
                 });
@@ -265,9 +478,51 @@ namespace Ecommerce.API.Migrations
                     b.Navigation("Category");
                 });
 
+            modelBuilder.Entity("Ecommerce.Domain.Entities.RolePermission", b =>
+                {
+                    b.HasOne("Ecommerce.Domain.Entities.Permission", "Permission")
+                        .WithMany("RolePermissions")
+                        .HasForeignKey("PermissionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Ecommerce.Domain.Entities.Role", "Role")
+                        .WithMany("RolePermissions")
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Permission");
+
+                    b.Navigation("Role");
+                });
+
+            modelBuilder.Entity("Ecommerce.Domain.Entities.User", b =>
+                {
+                    b.HasOne("Ecommerce.Domain.Entities.Role", "Role")
+                        .WithMany("Users")
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Role");
+                });
+
             modelBuilder.Entity("Ecommerce.Domain.Entities.Category", b =>
                 {
                     b.Navigation("Products");
+                });
+
+            modelBuilder.Entity("Ecommerce.Domain.Entities.Permission", b =>
+                {
+                    b.Navigation("RolePermissions");
+                });
+
+            modelBuilder.Entity("Ecommerce.Domain.Entities.Role", b =>
+                {
+                    b.Navigation("RolePermissions");
+
+                    b.Navigation("Users");
                 });
 #pragma warning restore 612, 618
         }

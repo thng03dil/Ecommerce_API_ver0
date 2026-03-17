@@ -1,21 +1,24 @@
-﻿using Ecommerce.Infrastructure.Data;
-using Ecommerce.API.Middleware;
+﻿using Ecommerce.API.Middleware;
+using Ecommerce.Application.Authorization;
+using Ecommerce.Application.Common.Responses;
 using Ecommerce.Application.Services.Implementations;
 using Ecommerce.Application.Services.Interfaces;
+using Ecommerce.Domain.Common.Settings;
 using Ecommerce.Domain.Interfaces;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
-using System.Text;
-using Serilog;
-using Microsoft.OpenApi.Models;
-using Ecommerce.Application.Common.Responses;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Mvc;
+using Ecommerce.Infrastructure.Data;
 using Ecommerce.Infrastructure.Data.Seed;
-using System.Text.Json;
 using Ecommerce.Infrastructure.Repositories;
 using Ecommerce.Infrastructure.SecurityHelpers;
-using Ecommerce.Domain.Common.Settings;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
+using Serilog;
+using System.Reflection;
+using System.Text;
+using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -35,6 +38,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped<ICategoryRepo, CategoryRepo>();
 builder.Services.AddScoped<IProductRepo, ProductRepo>(); 
 builder.Services.AddScoped<IUserRepo, UserRepo>();
+builder.Services.AddScoped<IRoleRepo, RoleRepo>();
+builder.Services.AddScoped<IPermissionRepo, PermissionRepo>();
 
 // Register Service
 builder.Services.AddScoped<IProductService, ProductService>();
@@ -42,6 +47,8 @@ builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IRoleService, RoleService>();
 
 builder.Services.AddControllers();
 
@@ -172,6 +179,11 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     };
 });
 
+//register custom authorization handler and policy provider
+builder.Services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHandler>();
+builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
+
+
 var app = builder.Build();
 
 app.UseMiddleware<GlobalExceptionMiddleware>();
@@ -192,6 +204,8 @@ app.UseSerilogRequestLogging(options =>
 app.UseHttpsRedirection();
 app.UseAuthentication();  
 app.UseAuthorization();
+
+
 app.MapControllers();
 
 // call seeder

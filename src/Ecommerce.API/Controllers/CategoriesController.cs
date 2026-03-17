@@ -1,9 +1,11 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Ecommerce.Application.Services.Interfaces;
-using Ecommerce.Application.DTOs.CategoryDtos;
+﻿using Ecommerce.Application.Authorization;
 using Ecommerce.Application.Common.Pagination;
+using Ecommerce.Application.DTOs.CategoryDtos;
+using Ecommerce.Application.Services.Interfaces;
 using Ecommerce.Domain.Common.Filters;
+using Ecommerce.Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 
 namespace Ecommerce.API.Controllers
@@ -19,6 +21,7 @@ namespace Ecommerce.API.Controllers
             _service = service;
         }
 
+        [Permission(Permissions.ViewCategory)]
         [HttpGet]
         public async Task<IActionResult> GetAll([FromQuery] CategoryFilterDto filter , [FromQuery] PaginationDto pagination)
         {
@@ -26,6 +29,7 @@ namespace Ecommerce.API.Controllers
             return Ok(result);
         }
 
+        [Permission(Permissions.ViewByIdCategory)]
         [HttpGet("{id}")]
         public async Task<IActionResult> Get(int id)
         {
@@ -36,7 +40,7 @@ namespace Ecommerce.API.Controllers
 
             return Ok(result);
         }
-        [Authorize(Roles = "Admin")]
+        [Permission(Permissions.CreateCategory)]
         [HttpPost]                                                                                              
         public async Task<IActionResult> Create(CategoryCreateDto dto)
         {
@@ -44,7 +48,7 @@ namespace Ecommerce.API.Controllers
             var result = await _service.CreateAsync(dto);
             return Ok(result);
         }
-        [Authorize(Roles = "Admin")]
+        [Permission(Permissions.UpdateCategory)]
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] CategoryUpdateDto dto)
         {
@@ -53,7 +57,7 @@ namespace Ecommerce.API.Controllers
 
             return Ok(result);
         }
-        [Authorize(Roles = "Admin")]
+        [Permission(Permissions.DeleteCategory)]
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {

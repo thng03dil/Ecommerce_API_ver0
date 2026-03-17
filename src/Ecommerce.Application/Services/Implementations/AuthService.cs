@@ -16,19 +16,22 @@ namespace Ecommerce.Application.Services.Implementations
     public class AuthService : IAuthService
     {
         private readonly IUserRepo _userRepo;
+        private readonly IRoleRepo _roleRepo;
         private readonly IJwtService _jwtService;
         private readonly JwtSettings _jwtSettings;
         private readonly IPasswordHasher _passwordHasher;
         private readonly ILogger<AuthService> _logger;
         public AuthService(
             IUserRepo userRepo,
+            IRoleRepo roleRepo,
             IJwtService jwtService,
             IOptions<JwtSettings> jwtSettings,
             IPasswordHasher passwordHasher,
             ILogger<AuthService> logger
             )
         {
-            _userRepo = userRepo;
+            _userRepo = userRepo; 
+            _roleRepo = roleRepo;
             _jwtService = jwtService;
             _jwtSettings = jwtSettings.Value;
             _passwordHasher = passwordHasher;
@@ -42,18 +45,26 @@ namespace Ecommerce.Application.Services.Implementations
 
             if (exist != null)
             {
-                _logger.LogInformation("Register attempt for {Email}", request.Email);
+                _logger.LogWarning("Registration failed: Email {Email} already exists", request.Email);
                 throw new ConflictException("Email already exists");
             }
+
+            var defaultRole = await _roleRepo.GetByNameRoleAsync("User");
+            if (defaultRole == null)
+            {
+                _logger.LogError("Default Role 'User' not found in database.");
+                throw new Exception("System role configuration error");
+            }
+
             var user = new User
             {
                 Email = request.Email,
                 PasswordHash = _passwordHasher.Hash(request.Password),
-                Role = "User"
+                RoleId = defaultRole.Id,
+                CreatedAt = DateTime.UtcNow
             };
 
             await _userRepo.AddAsync(user);
-            await _userRepo.SaveChangesAsync();
 
             _logger.LogInformation("User registered successfully {Email}", request.Email);
         }

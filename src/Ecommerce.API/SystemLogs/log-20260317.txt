@@ -1,0 +1,59 @@
+2026-03-17 00:38:25 [ERR] [Microsoft.EntityFrameworkCore.Database.Command] Failed executing DbCommand (56ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT [p].[Id]
+FROM [Permissions] AS [p] {"EventId":{"Id":20102,"Name":"Microsoft.EntityFrameworkCore.Database.Command.CommandError"}} 
+2026-03-17 00:38:25 [ERR] [Microsoft.EntityFrameworkCore.Query] An exception occurred while iterating over the results of a query for context type 'Ecommerce.Infrastructure.Data.AppDbContext'.
+Microsoft.Data.SqlClient.SqlException (0x80131904): Invalid object name 'Permissions'.
+   at Microsoft.Data.SqlClient.SqlCommand.<>c.<ExecuteDbDataReaderAsync>b__195_0(Task`1 result)
+   at System.Threading.Tasks.ContinuationResultTaskFromResultTask`2.InnerInvoke()
+   at System.Threading.ExecutionContext.RunInternal(ExecutionContext executionContext, ContextCallback callback, Object state)
+--- End of stack trace from previous location ---
+   at System.Threading.ExecutionContext.RunInternal(ExecutionContext executionContext, ContextCallback callback, Object state)
+   at System.Threading.Tasks.Task.ExecuteWithThreadLocal(Task& currentTaskSlot, Thread threadPoolThread)
+--- End of stack trace from previous location ---
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.InitializeReaderAsync(AsyncEnumerator enumerator, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.SqlServer.Storage.Internal.SqlServerExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+ClientConnectionId:8bccfe1e-97d7-4c4f-9617-5f2c04580627
+Error Number:208,State:1,Class:16 {"EventId":{"Id":10100,"Name":"Microsoft.EntityFrameworkCore.Query.QueryIterationFailed"}} 
+Microsoft.Data.SqlClient.SqlException (0x80131904): Invalid object name 'Permissions'.
+   at Microsoft.Data.SqlClient.SqlCommand.<>c.<ExecuteDbDataReaderAsync>b__195_0(Task`1 result)
+   at System.Threading.Tasks.ContinuationResultTaskFromResultTask`2.InnerInvoke()
+   at System.Threading.ExecutionContext.RunInternal(ExecutionContext executionContext, ContextCallback callback, Object state)
+--- End of stack trace from previous location ---
+   at System.Threading.ExecutionContext.RunInternal(ExecutionContext executionContext, ContextCallback callback, Object state)
+   at System.Threading.Tasks.Task.ExecuteWithThreadLocal(Task& currentTaskSlot, Thread threadPoolThread)
+--- End of stack trace from previous location ---
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.InitializeReaderAsync(AsyncEnumerator enumerator, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.SqlServer.Storage.Internal.SqlServerExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+ClientConnectionId:8bccfe1e-97d7-4c4f-9617-5f2c04580627
+Error Number:208,State:1,Class:16
+2026-03-17 00:41:54 [INF] [Ecommerce.Application.Services.Implementations.AuthService] User login attempt: admin@shop.com {"ActionId":"7f6ca1c3-9cdf-4df7-a334-bee3bce898b6","ActionName":"Ecommerce.API.Controllers.AuthController.Login (Ecommerce.API)","RequestId":"0HNK3GCHNAGG5:0000000B","RequestPath":"/api/auth/login","ConnectionId":"0HNK3GCHNAGG5"} 
+2026-03-17 00:41:54 [INF] [Ecommerce.Application.Services.Implementations.AuthService] User login success: admin@shop.com {"ActionId":"7f6ca1c3-9cdf-4df7-a334-bee3bce898b6","ActionName":"Ecommerce.API.Controllers.AuthController.Login (Ecommerce.API)","RequestId":"0HNK3GCHNAGG5:0000000B","RequestPath":"/api/auth/login","ConnectionId":"0HNK3GCHNAGG5"} 
+2026-03-17 00:41:55 [INF] [Serilog.AspNetCore.RequestLoggingMiddleware] HTTP POST /api/auth/login responded 200 in 1002 ms {"RequestId":"0HNK3GCHNAGG5:0000000B","ConnectionId":"0HNK3GCHNAGG5"} 
+2026-03-17 00:42:27 [INF] [Serilog.AspNetCore.RequestLoggingMiddleware] HTTP POST /api/Role responded 403 in 105 ms {"RequestId":"0HNK3GCHNAGG5:0000000D","ConnectionId":"0HNK3GCHNAGG5"} 
+2026-03-17 00:53:17 [INF] [Ecommerce.Application.Services.Implementations.AuthService] User login attempt: admin@shop.com {"ActionId":"9d25b804-5396-4301-9712-d50507b2817f","ActionName":"Ecommerce.API.Controllers.AuthController.Login (Ecommerce.API)","RequestId":"0HNK3GJE7DOKA:0000000B","RequestPath":"/api/auth/login","ConnectionId":"0HNK3GJE7DOKA"} 
+2026-03-17 00:53:18 [INF] [Ecommerce.Application.Services.Implementations.AuthService] User login success: admin@shop.com {"ActionId":"9d25b804-5396-4301-9712-d50507b2817f","ActionName":"Ecommerce.API.Controllers.AuthController.Login (Ecommerce.API)","RequestId":"0HNK3GJE7DOKA:0000000B","RequestPath":"/api/auth/login","ConnectionId":"0HNK3GJE7DOKA"} 
+2026-03-17 00:53:18 [INF] [Serilog.AspNetCore.RequestLoggingMiddleware] HTTP POST /api/auth/login responded 200 in 655 ms {"RequestId":"0HNK3GJE7DOKA:0000000B","ConnectionId":"0HNK3GJE7DOKA"} 
+2026-03-17 00:53:30 [INF] [Serilog.AspNetCore.RequestLoggingMiddleware] HTTP POST /api/Role responded 401 in 28 ms {"RequestId":"0HNK3GJE7DOKA:0000000D","ConnectionId":"0HNK3GJE7DOKA"} 
+2026-03-17 00:54:05 [INF] [Serilog.AspNetCore.RequestLoggingMiddleware] HTTP POST /api/Role responded 401 in 42 ms {"RequestId":"0HNK3GJE7DOKA:0000000F","ConnectionId":"0HNK3GJE7DOKA"} 
+2026-03-17 00:54:11 [INF] [Serilog.AspNetCore.RequestLoggingMiddleware] HTTP POST /api/Role responded 401 in 12 ms {"RequestId":"0HNK3GJE7DOKA:00000011","ConnectionId":"0HNK3GJE7DOKA"} 
+2026-03-17 00:54:38 [INF] [Ecommerce.Application.Services.Implementations.AuthService] Refresh token attempt {"ActionId":"30647c71-6237-4c81-9123-46bf14b74817","ActionName":"Ecommerce.API.Controllers.AuthController.Refresh (Ecommerce.API)","RequestId":"0HNK3GJE7DOKA:00000013","RequestPath":"/api/auth/refresh","ConnectionId":"0HNK3GJE7DOKA"} 
+2026-03-17 00:54:38 [INF] [Ecommerce.Application.Services.Implementations.AuthService] Refresh token success for admin@shop.com {"ActionId":"30647c71-6237-4c81-9123-46bf14b74817","ActionName":"Ecommerce.API.Controllers.AuthController.Refresh (Ecommerce.API)","RequestId":"0HNK3GJE7DOKA:00000013","RequestPath":"/api/auth/refresh","ConnectionId":"0HNK3GJE7DOKA"} 
+2026-03-17 00:54:38 [INF] [Serilog.AspNetCore.RequestLoggingMiddleware] HTTP POST /api/auth/refresh responded 200 in 140 ms {"RequestId":"0HNK3GJE7DOKA:00000013","ConnectionId":"0HNK3GJE7DOKA"} 
+2026-03-17 00:54:57 [INF] [Serilog.AspNetCore.RequestLoggingMiddleware] HTTP POST /api/Role responded 200 in 120 ms {"RequestId":"0HNK3GJE7DOKA:00000015","ConnectionId":"0HNK3GJE7DOKA"} 
+2026-03-17 01:23:49 [INF] [Ecommerce.Application.Services.Implementations.AuthService] User login attempt: admin@shop.com {"ActionId":"9bfaef17-275d-4158-9116-3bd24c697356","ActionName":"Ecommerce.API.Controllers.AuthController.Login (Ecommerce.API)","RequestId":"0HNK3H4D2APAP:0000000B","RequestPath":"/api/auth/login","ConnectionId":"0HNK3H4D2APAP"} 
+2026-03-17 01:23:50 [INF] [Ecommerce.Application.Services.Implementations.AuthService] User login success: admin@shop.com {"ActionId":"9bfaef17-275d-4158-9116-3bd24c697356","ActionName":"Ecommerce.API.Controllers.AuthController.Login (Ecommerce.API)","RequestId":"0HNK3H4D2APAP:0000000B","RequestPath":"/api/auth/login","ConnectionId":"0HNK3H4D2APAP"} 
+2026-03-17 01:23:50 [INF] [Serilog.AspNetCore.RequestLoggingMiddleware] HTTP POST /api/auth/login responded 200 in 834 ms {"RequestId":"0HNK3H4D2APAP:0000000B","ConnectionId":"0HNK3H4D2APAP"} 
+2026-03-17 09:20:33 [INF] [Ecommerce.Application.Services.Implementations.AuthService] User login attempt: admin@shop.com {"ActionId":"8f298ecf-968b-4ac0-aee5-b74c71d3f1af","ActionName":"Ecommerce.API.Controllers.AuthController.Login (Ecommerce.API)","RequestId":"0HNK3PEQT4PE3:0000000B","RequestPath":"/api/auth/login","ConnectionId":"0HNK3PEQT4PE3"} 
+2026-03-17 09:20:34 [INF] [Ecommerce.Application.Services.Implementations.AuthService] User login success: admin@shop.com {"ActionId":"8f298ecf-968b-4ac0-aee5-b74c71d3f1af","ActionName":"Ecommerce.API.Controllers.AuthController.Login (Ecommerce.API)","RequestId":"0HNK3PEQT4PE3:0000000B","RequestPath":"/api/auth/login","ConnectionId":"0HNK3PEQT4PE3"} 
+2026-03-17 09:20:35 [INF] [Serilog.AspNetCore.RequestLoggingMiddleware] HTTP POST /api/auth/login responded 200 in 1951 ms {"RequestId":"0HNK3PEQT4PE3:0000000B","ConnectionId":"0HNK3PEQT4PE3"} 
+2026-03-17 09:20:57 [INF] [Serilog.AspNetCore.RequestLoggingMiddleware] HTTP GET /api/Role responded 200 in 532 ms {"RequestId":"0HNK3PEQT4PE3:0000000D","ConnectionId":"0HNK3PEQT4PE3"} 
+2026-03-17 09:21:13 [INF] [Serilog.AspNetCore.RequestLoggingMiddleware] HTTP DELETE /api/Role/3 responded 200 in 157 ms {"RequestId":"0HNK3PEQT4PE3:0000000F","ConnectionId":"0HNK3PEQT4PE3"} 
+2026-03-17 09:21:27 [INF] [Ecommerce.Application.Services.Implementations.AuthService] Get users request Page:1 Size:10 {"ActionId":"bc1ecab1-2a4b-4d20-b1ab-b5c52b519178","ActionName":"Ecommerce.API.Controllers.UserController.GetAll (Ecommerce.API)","RequestId":"0HNK3PEQT4PE3:00000011","RequestPath":"/api/User","ConnectionId":"0HNK3PEQT4PE3"} 
+2026-03-17 09:21:27 [INF] [Ecommerce.Application.Services.Implementations.AuthService] Get categories success Count:1 {"ActionId":"bc1ecab1-2a4b-4d20-b1ab-b5c52b519178","ActionName":"Ecommerce.API.Controllers.UserController.GetAll (Ecommerce.API)","RequestId":"0HNK3PEQT4PE3:00000011","RequestPath":"/api/User","ConnectionId":"0HNK3PEQT4PE3"} 
+2026-03-17 09:21:27 [INF] [Serilog.AspNetCore.RequestLoggingMiddleware] HTTP GET /api/User responded 200 in 128 ms {"RequestId":"0HNK3PEQT4PE3:00000011","ConnectionId":"0HNK3PEQT4PE3"} 

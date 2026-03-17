@@ -29,6 +29,7 @@ namespace Ecommerce.Infrastructure.Data.Configurations
                 .IsRequired()
                 .HasColumnType("int")       
                 .HasDefaultValue(0);
+
             builder.ToTable(t => t.HasCheckConstraint(
                 "CK_Product_Stock_Min", 
                 "[Stock] >= 0"
