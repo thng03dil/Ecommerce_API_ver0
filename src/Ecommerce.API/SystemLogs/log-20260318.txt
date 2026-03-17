@@ -1,0 +1,141 @@
+2026-03-18 00:11:18 [ERR] [Serilog.AspNetCore.RequestLoggingMiddleware] HTTP POST /api/auth/login responded 500 in 30848 ms {"RequestId":"0HNK490BN6A86:0000000B","ConnectionId":"0HNK490BN6A86"} 
+System.Exception: JWT Key is missing (env: Jwt__Key)
+   at Program.<>c__DisplayClass0_0.<<Main>$>b__3(JwtBearerOptions options) in D:\Work\Project\Ecommerce\src\Ecommerce.API\Program.cs:line 147
+   at Microsoft.Extensions.Options.OptionsFactory`1.Create(String name)
+   at System.Lazy`1.ViaFactory(LazyThreadSafetyMode mode)
+   at System.Lazy`1.ExecutionAndPublication(LazyHelper executionAndPublication, Boolean useDefaultConstructor)
+   at System.Lazy`1.CreateValue()
+   at Microsoft.Extensions.Options.OptionsCache`1.GetOrAdd[TArg](String name, Func`3 createOptions, TArg factoryArgument)
+   at Microsoft.Extensions.Options.OptionsMonitor`1.Get(String name)
+   at Microsoft.AspNetCore.Authentication.AuthenticationHandler`1.InitializeAsync(AuthenticationScheme scheme, HttpContext context)
+   at Microsoft.AspNetCore.Authentication.AuthenticationHandlerProvider.GetHandlerAsync(HttpContext context, String authenticationScheme)
+   at Microsoft.AspNetCore.Authentication.AuthenticationService.AuthenticateAsync(HttpContext context, String scheme)
+   at Microsoft.AspNetCore.Authentication.AuthenticationServiceImpl.AuthenticateAsync(HttpContext context, String scheme)
+   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
+   at Serilog.AspNetCore.RequestLoggingMiddleware.Invoke(HttpContext httpContext)
+2026-03-18 00:11:18 [ERR] [Ecommerce.API.Middleware.GlobalExceptionMiddleware] Request failed POST /api/auth/login TraceId:0HNK490BN6A86:0000000B {"RequestId":"0HNK490BN6A86:0000000B","RequestPath":"/api/auth/login","ConnectionId":"0HNK490BN6A86"} 
+System.Exception: JWT Key is missing (env: Jwt__Key)
+   at Program.<>c__DisplayClass0_0.<<Main>$>b__3(JwtBearerOptions options) in D:\Work\Project\Ecommerce\src\Ecommerce.API\Program.cs:line 147
+   at Microsoft.Extensions.Options.OptionsFactory`1.Create(String name)
+   at System.Lazy`1.ViaFactory(LazyThreadSafetyMode mode)
+   at System.Lazy`1.ExecutionAndPublication(LazyHelper executionAndPublication, Boolean useDefaultConstructor)
+   at System.Lazy`1.CreateValue()
+   at Microsoft.Extensions.Options.OptionsCache`1.GetOrAdd[TArg](String name, Func`3 createOptions, TArg factoryArgument)
+   at Microsoft.Extensions.Options.OptionsMonitor`1.Get(String name)
+   at Microsoft.AspNetCore.Authentication.AuthenticationHandler`1.InitializeAsync(AuthenticationScheme scheme, HttpContext context)
+   at Microsoft.AspNetCore.Authentication.AuthenticationHandlerProvider.GetHandlerAsync(HttpContext context, String authenticationScheme)
+   at Microsoft.AspNetCore.Authentication.AuthenticationService.AuthenticateAsync(HttpContext context, String scheme)
+   at Microsoft.AspNetCore.Authentication.AuthenticationServiceImpl.AuthenticateAsync(HttpContext context, String scheme)
+   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
+   at Serilog.AspNetCore.RequestLoggingMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at Ecommerce.API.Middleware.GlobalExceptionMiddleware.InvokeAsync(HttpContext context) in D:\Work\Project\Ecommerce\src\Ecommerce.API\Middleware\GlobalExceptionMiddleware.cs:line 22
+2026-03-18 00:11:25 [ERR] [Serilog.AspNetCore.RequestLoggingMiddleware] HTTP POST /api/auth/login responded 500 in 4 ms {"RequestId":"0HNK490BN6A86:0000000D","ConnectionId":"0HNK490BN6A86"} 
+System.Exception: JWT Key is missing (env: Jwt__Key)
+   at Program.<>c__DisplayClass0_0.<<Main>$>b__3(JwtBearerOptions options) in D:\Work\Project\Ecommerce\src\Ecommerce.API\Program.cs:line 147
+   at Microsoft.Extensions.Options.OptionsFactory`1.Create(String name)
+   at System.Lazy`1.ViaFactory(LazyThreadSafetyMode mode)
+--- End of stack trace from previous location ---
+   at System.Lazy`1.CreateValue()
+   at Microsoft.Extensions.Options.OptionsCache`1.GetOrAdd[TArg](String name, Func`3 createOptions, TArg factoryArgument)
+   at Microsoft.Extensions.Options.OptionsMonitor`1.Get(String name)
+   at Microsoft.AspNetCore.Authentication.AuthenticationHandler`1.InitializeAsync(AuthenticationScheme scheme, HttpContext context)
+   at Microsoft.AspNetCore.Authentication.AuthenticationHandlerProvider.GetHandlerAsync(HttpContext context, String authenticationScheme)
+   at Microsoft.AspNetCore.Authentication.AuthenticationService.AuthenticateAsync(HttpContext context, String scheme)
+   at Microsoft.AspNetCore.Authentication.AuthenticationServiceImpl.AuthenticateAsync(HttpContext context, String scheme)
+   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
+   at Serilog.AspNetCore.RequestLoggingMiddleware.Invoke(HttpContext httpContext)
+2026-03-18 00:11:25 [ERR] [Ecommerce.API.Middleware.GlobalExceptionMiddleware] Request failed POST /api/auth/login TraceId:0HNK490BN6A86:0000000D {"RequestId":"0HNK490BN6A86:0000000D","RequestPath":"/api/auth/login","ConnectionId":"0HNK490BN6A86"} 
+System.Exception: JWT Key is missing (env: Jwt__Key)
+   at Program.<>c__DisplayClass0_0.<<Main>$>b__3(JwtBearerOptions options) in D:\Work\Project\Ecommerce\src\Ecommerce.API\Program.cs:line 147
+   at Microsoft.Extensions.Options.OptionsFactory`1.Create(String name)
+   at System.Lazy`1.ViaFactory(LazyThreadSafetyMode mode)
+--- End of stack trace from previous location ---
+   at System.Lazy`1.CreateValue()
+   at Microsoft.Extensions.Options.OptionsCache`1.GetOrAdd[TArg](String name, Func`3 createOptions, TArg factoryArgument)
+   at Microsoft.Extensions.Options.OptionsMonitor`1.Get(String name)
+   at Microsoft.AspNetCore.Authentication.AuthenticationHandler`1.InitializeAsync(AuthenticationScheme scheme, HttpContext context)
+   at Microsoft.AspNetCore.Authentication.AuthenticationHandlerProvider.GetHandlerAsync(HttpContext context, String authenticationScheme)
+   at Microsoft.AspNetCore.Authentication.AuthenticationService.AuthenticateAsync(HttpContext context, String scheme)
+   at Microsoft.AspNetCore.Authentication.AuthenticationServiceImpl.AuthenticateAsync(HttpContext context, String scheme)
+   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
+   at Serilog.AspNetCore.RequestLoggingMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at Ecommerce.API.Middleware.GlobalExceptionMiddleware.InvokeAsync(HttpContext context) in D:\Work\Project\Ecommerce\src\Ecommerce.API\Middleware\GlobalExceptionMiddleware.cs:line 22
+2026-03-18 00:12:11 [ERR] [Serilog.AspNetCore.RequestLoggingMiddleware] HTTP POST /api/auth/login responded 500 in 63 ms {"RequestId":"0HNK49134QCF3:0000000B","ConnectionId":"0HNK49134QCF3"} 
+System.Exception: JWT Key is missing (env: Jwt__Key)
+   at Program.<>c__DisplayClass0_0.<<Main>$>b__3(JwtBearerOptions options) in D:\Work\Project\Ecommerce\src\Ecommerce.API\Program.cs:line 147
+   at Microsoft.Extensions.Options.OptionsFactory`1.Create(String name)
+   at System.Lazy`1.ViaFactory(LazyThreadSafetyMode mode)
+   at System.Lazy`1.ExecutionAndPublication(LazyHelper executionAndPublication, Boolean useDefaultConstructor)
+   at System.Lazy`1.CreateValue()
+   at Microsoft.Extensions.Options.OptionsCache`1.GetOrAdd[TArg](String name, Func`3 createOptions, TArg factoryArgument)
+   at Microsoft.Extensions.Options.OptionsMonitor`1.Get(String name)
+   at Microsoft.AspNetCore.Authentication.AuthenticationHandler`1.InitializeAsync(AuthenticationScheme scheme, HttpContext context)
+   at Microsoft.AspNetCore.Authentication.AuthenticationHandlerProvider.GetHandlerAsync(HttpContext context, String authenticationScheme)
+   at Microsoft.AspNetCore.Authentication.AuthenticationService.AuthenticateAsync(HttpContext context, String scheme)
+   at Microsoft.AspNetCore.Authentication.AuthenticationServiceImpl.AuthenticateAsync(HttpContext context, String scheme)
+   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
+   at Serilog.AspNetCore.RequestLoggingMiddleware.Invoke(HttpContext httpContext)
+2026-03-18 00:12:11 [ERR] [Ecommerce.API.Middleware.GlobalExceptionMiddleware] Request failed POST /api/auth/login TraceId:0HNK49134QCF3:0000000B {"RequestId":"0HNK49134QCF3:0000000B","RequestPath":"/api/auth/login","ConnectionId":"0HNK49134QCF3"} 
+System.Exception: JWT Key is missing (env: Jwt__Key)
+   at Program.<>c__DisplayClass0_0.<<Main>$>b__3(JwtBearerOptions options) in D:\Work\Project\Ecommerce\src\Ecommerce.API\Program.cs:line 147
+   at Microsoft.Extensions.Options.OptionsFactory`1.Create(String name)
+   at System.Lazy`1.ViaFactory(LazyThreadSafetyMode mode)
+   at System.Lazy`1.ExecutionAndPublication(LazyHelper executionAndPublication, Boolean useDefaultConstructor)
+   at System.Lazy`1.CreateValue()
+   at Microsoft.Extensions.Options.OptionsCache`1.GetOrAdd[TArg](String name, Func`3 createOptions, TArg factoryArgument)
+   at Microsoft.Extensions.Options.OptionsMonitor`1.Get(String name)
+   at Microsoft.AspNetCore.Authentication.AuthenticationHandler`1.InitializeAsync(AuthenticationScheme scheme, HttpContext context)
+   at Microsoft.AspNetCore.Authentication.AuthenticationHandlerProvider.GetHandlerAsync(HttpContext context, String authenticationScheme)
+   at Microsoft.AspNetCore.Authentication.AuthenticationService.AuthenticateAsync(HttpContext context, String scheme)
+   at Microsoft.AspNetCore.Authentication.AuthenticationServiceImpl.AuthenticateAsync(HttpContext context, String scheme)
+   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
+   at Serilog.AspNetCore.RequestLoggingMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at Ecommerce.API.Middleware.GlobalExceptionMiddleware.InvokeAsync(HttpContext context) in D:\Work\Project\Ecommerce\src\Ecommerce.API\Middleware\GlobalExceptionMiddleware.cs:line 22
+2026-03-18 00:14:44 [INF] [Ecommerce.Application.Services.Implementations.AuthService] User login attempt: admin@shop.com {"ActionId":"45960291-3b7e-42bf-9ebe-fd13d55bcdf4","ActionName":"Ecommerce.API.Controllers.AuthController.Login (Ecommerce.API)","RequestId":"0HNK492GT4044:0000000B","RequestPath":"/api/auth/login","ConnectionId":"0HNK492GT4044"} 
+2026-03-18 00:14:44 [INF] [Ecommerce.Application.Services.Implementations.AuthService] User login success: admin@shop.com {"ActionId":"45960291-3b7e-42bf-9ebe-fd13d55bcdf4","ActionName":"Ecommerce.API.Controllers.AuthController.Login (Ecommerce.API)","RequestId":"0HNK492GT4044:0000000B","RequestPath":"/api/auth/login","ConnectionId":"0HNK492GT4044"} 
+2026-03-18 00:14:45 [INF] [Serilog.AspNetCore.RequestLoggingMiddleware] HTTP POST /api/auth/login responded 200 in 1488 ms {"RequestId":"0HNK492GT4044:0000000B","ConnectionId":"0HNK492GT4044"} 
+2026-03-18 00:15:19 [INF] [Ecommerce.Application.Services.Implementations.AuthService] Get user by id 2 {"ActionId":"7e4c086e-6003-4520-a5e2-62aaf2607a67","ActionName":"Ecommerce.API.Controllers.UserController.GetById (Ecommerce.API)","RequestId":"0HNK492GT4044:0000000D","RequestPath":"/api/User/2","ConnectionId":"0HNK492GT4044"} 
+2026-03-18 00:15:19 [WRN] [Ecommerce.Application.Services.Implementations.AuthService] user not found 2 {"ActionId":"7e4c086e-6003-4520-a5e2-62aaf2607a67","ActionName":"Ecommerce.API.Controllers.UserController.GetById (Ecommerce.API)","RequestId":"0HNK492GT4044:0000000D","RequestPath":"/api/User/2","ConnectionId":"0HNK492GT4044"} 
+2026-03-18 00:15:41 [ERR] [Serilog.AspNetCore.RequestLoggingMiddleware] HTTP GET /api/User/2 responded 500 in 21905 ms {"RequestId":"0HNK492GT4044:0000000D","ConnectionId":"0HNK492GT4044"} 
+Ecommerce.Application.Exceptions.NotFoundException: NOT_FOUND
+   at Ecommerce.Application.Services.Implementations.UserService.GetByIdAsync(Int32 id) in D:\Work\Project\Ecommerce\src\Ecommerce.Application\Services\Implementations\UserService.cs:line 53
+   at Ecommerce.API.Controllers.UserController.GetById(Int32 id) in D:\Work\Project\Ecommerce\src\Ecommerce.API\Controllers\UserController.cs:line 34
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.TaskOfIActionResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeInnerFilterAsync>g__Awaited|13_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
+   at Serilog.AspNetCore.RequestLoggingMiddleware.Invoke(HttpContext httpContext)
+2026-03-18 00:15:41 [ERR] [Ecommerce.API.Middleware.GlobalExceptionMiddleware] Request failed GET /api/User/2 TraceId:0HNK492GT4044:0000000D {"RequestId":"0HNK492GT4044:0000000D","RequestPath":"/api/User/2","ConnectionId":"0HNK492GT4044"} 
+Ecommerce.Application.Exceptions.NotFoundException: NOT_FOUND
+   at Ecommerce.Application.Services.Implementations.UserService.GetByIdAsync(Int32 id) in D:\Work\Project\Ecommerce\src\Ecommerce.Application\Services\Implementations\UserService.cs:line 53
+   at Ecommerce.API.Controllers.UserController.GetById(Int32 id) in D:\Work\Project\Ecommerce\src\Ecommerce.API\Controllers\UserController.cs:line 34
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.TaskOfIActionResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeInnerFilterAsync>g__Awaited|13_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
+   at Serilog.AspNetCore.RequestLoggingMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at Ecommerce.API.Middleware.GlobalExceptionMiddleware.InvokeAsync(HttpContext context) in D:\Work\Project\Ecommerce\src\Ecommerce.API\Middleware\GlobalExceptionMiddleware.cs:line 22
+2026-03-18 00:15:55 [INF] [Ecommerce.Application.Services.Implementations.AuthService] Get user by id 1 {"ActionId":"7e4c086e-6003-4520-a5e2-62aaf2607a67","ActionName":"Ecommerce.API.Controllers.UserController.GetById (Ecommerce.API)","RequestId":"0HNK492GT4044:0000000F","RequestPath":"/api/User/1","ConnectionId":"0HNK492GT4044"} 
+2026-03-18 00:15:55 [INF] [Serilog.AspNetCore.RequestLoggingMiddleware] HTTP GET /api/User/1 responded 200 in 67 ms {"RequestId":"0HNK492GT4044:0000000F","ConnectionId":"0HNK492GT4044"} 

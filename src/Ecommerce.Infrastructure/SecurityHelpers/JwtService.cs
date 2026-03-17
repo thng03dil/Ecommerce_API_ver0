@@ -13,10 +13,19 @@ namespace Ecommerce.Infrastructure.SecurityHelpers
     public class JwtService : IJwtService
     {
         private readonly JwtSettings _jwtSettings;
+        private readonly byte[] _keyBytes;
 
         public JwtService(IOptions<JwtSettings> jwtSettings)
         {
             _jwtSettings = jwtSettings.Value;
+
+            if (string.IsNullOrWhiteSpace(_jwtSettings.Key))
+                throw new Exception("JWT Key is missing from environment variables");
+
+            if (_jwtSettings.Key.Length < 32)
+                throw new Exception("JWT Key must be at least 32 characters");
+
+            _keyBytes = Encoding.UTF8.GetBytes(_jwtSettings.Key);
         }
 
         public string GenerateAccessToken(User user)
@@ -25,11 +34,11 @@ namespace Ecommerce.Infrastructure.SecurityHelpers
             {
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new Claim(ClaimTypes.Email, user.Email),
-                new Claim(ClaimTypes.Role, user.Role.Name)
+                new Claim(ClaimTypes.Role, user.Role?.Name ?? "User")
 
             };
 
-            if (user.Role.RolePermissions != null)
+            if (user.Role?.RolePermissions != null)
             {
                 var permissions = user.Role.RolePermissions
                     .Select(rp => rp.Permission.Name);
@@ -40,8 +49,7 @@ namespace Ecommerce.Infrastructure.SecurityHelpers
                 }
             }
 
-            var key = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(_jwtSettings.Key));
+            var key = new SymmetricSecurityKey(_keyBytes);
 
             var credentials = new SigningCredentials(
                 key,
@@ -70,8 +78,7 @@ namespace Ecommerce.Infrastructure.SecurityHelpers
 
         public ClaimsPrincipal GetPrincipalFromExpiredToken(string token)
         {
-            var key = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(_jwtSettings.Key));
+            var key = new SymmetricSecurityKey(_keyBytes);
 
             var tokenValidationParameters = new TokenValidationParameters
             {

@@ -140,8 +140,17 @@ builder.Services.AddSwaggerGen(c =>
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 .AddJwtBearer(options =>
 {
-    var secret = builder.Configuration["Jwt:Key"]
-     ?? throw new Exception("JWT Key not configured");
+    var secret = builder.Configuration["Jwt:Key"];
+
+    if (string.IsNullOrWhiteSpace(secret))
+    {
+        throw new Exception("JWT Key is missing (env: Jwt__Key)");
+    }
+
+    if (secret.Length < 32)
+    {
+        throw new Exception("JWT Key must be at least 32 characters");
+    }
 
     var key = Encoding.UTF8.GetBytes(secret);
 
