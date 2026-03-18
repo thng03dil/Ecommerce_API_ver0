@@ -6,9 +6,9 @@ namespace Ecommerce.Application.Extensions
     public static class QueryableExtensions
     {
         public static IQueryable<T> ApplySorting<T>(
-    this IQueryable<T> query,
-    string? sortBy,
-    string? sortOrder)
+            this IQueryable<T> query,
+            string? sortBy,
+            string? sortOrder)
         {
             if (string.IsNullOrWhiteSpace(sortBy))
                 return query;

@@ -78,6 +78,7 @@ namespace Ecommerce.Application.Services.Implementations
                 Entity = entity,
                 Action = action,
                 Name = name,
+                IsSystem = false,
                 Description = dto.Description?.Trim() ?? string.Empty,
                 CreatedAt = DateTime.UtcNow
             };
@@ -128,6 +129,7 @@ namespace Ecommerce.Application.Services.Implementations
             permission.Entity = entity;
             permission.Action = action;
             permission.Name = $"{entity}.{action}";
+            permission.IsSystem = dto.IsSystem;
             permission.Description = dto.Description?.Trim() ?? string.Empty;
             permission.UpdatedAt = DateTime.UtcNow;
 
@@ -155,11 +157,11 @@ namespace Ecommerce.Application.Services.Implementations
 
             // Step 1: Protect system permissions
             if (permission.IsSystem)
-                throw new BusinessException("Không thể xóa quyền hệ thống");
+                throw new BusinessException("Do not delete system permission");
 
             // Step 2: Allow delete even if Admin holds it, but block if any non-Admin role is using it.
             if (await _permissionRepo.IsAssignedToAnyNonAdminRoleAsync(permission.Id))
-                throw new BusinessException("Quyền này đang được gán cho các vai trò người dùng. Hãy gỡ quyền trước khi xóa");
+                throw new BusinessException("Permission is assigned by role user. Please remove permissions before deleting");
 
             // Step 3: Soft delete
             permission.IsDeleted = true;
@@ -184,6 +186,7 @@ namespace Ecommerce.Application.Services.Implementations
             Entity = p.Entity,
             Action = p.Action,
             Description = p.Description,
+            IsSystem = p.IsSystem,
             CreatedAt = p.CreatedAt,
             UpdatedAt = p.UpdatedAt
         };

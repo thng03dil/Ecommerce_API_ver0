@@ -15,9 +15,6 @@ namespace Ecommerce.Application.DTOs.Role
         [StringLength(200, ErrorMessage = "Description cannot exceed 200 characters")]
         public string? Description { get; set; }
 
-        /// <summary>
-        /// Optional: assign permissions right after role creation.
-        /// </summary>
         public List<int> PermissionIds { get; set; } = new List<int>();
     }
 }

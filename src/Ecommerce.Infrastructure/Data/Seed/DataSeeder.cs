@@ -9,10 +9,10 @@ namespace Ecommerce.Infrastructure.Data.Seed
     {
         public static async Task SeedAdminAsync(AppDbContext context)
         {
-            // Assign full permissions to Admin role (Admin is the highest role).
+            // Assign full permissions to Admin 
             var allPermissionIds = await context.Permissions.Select(p => p.Id).ToListAsync();
             var currentAdminPIds = await context.RolePermissions
-                .Where(rp => rp.RoleId == 1) // 1 là Admin
+                .Where(rp => rp.RoleId == 1) 
                 .Select(rp => rp.PermissionId)
                 .ToListAsync();
 
@@ -22,7 +22,7 @@ namespace Ecommerce.Infrastructure.Data.Seed
                 context.RolePermissions.Add(new RolePermission { RoleId = 1, PermissionId = pId });
             }
 
-            // Assign basic permissions to User role (read-only).
+            // Assign read permissions to User 
             var userPermNames = new List<string>
             {
                 "product.read",
@@ -48,11 +48,11 @@ namespace Ecommerce.Infrastructure.Data.Seed
             await context.SaveChangesAsync();
 
             // Seed admin user (for local/dev usage)
-            if (!await context.Users.AnyAsync(u => u.Email == "admin@shop.com"))
+            if (!await context.Users.AnyAsync(u => u.Email == "admin@example.com"))
             {
                 context.Users.Add(new User
                 {
-                    Email = "admin@shop.com",
+                    Email = "admin@example.com",
                     PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin123!"),
                     RoleId = 1, // Admin
                     CreatedAt = DateTime.UtcNow,
