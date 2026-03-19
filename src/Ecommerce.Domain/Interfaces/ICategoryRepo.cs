@@ -8,8 +8,6 @@ namespace Ecommerce.Domain.Interfaces
     public interface ICategoryRepo
     {
         
-            //Task<(IEnumerable<Category>,int totalCount)> GetAllAsync(PaginationDto pagedto);
-
             Task<Category?> GetByIdAsync(int id);
 
             Task CreateAsync(Category category);

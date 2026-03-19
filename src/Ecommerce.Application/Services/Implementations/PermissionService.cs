@@ -17,44 +17,33 @@ namespace Ecommerce.Application.Services.Implementations
         private readonly IPermissionRepo _permissionRepo;
         private readonly IRoleRepo _roleRepo;
 
-        private readonly ILogger<PermissionService> _logger;
         public PermissionService( 
             IPermissionRepo permissionRepo,
-            IRoleRepo roleRepo,
-            ILogger<PermissionService> logger)
+            IRoleRepo roleRepo)
         {
             _permissionRepo = permissionRepo;
             _roleRepo = roleRepo;
-            _logger = logger;
         }
         public async Task<ApiResponse<PagedResponse<PermissionResponseDto>>> GetAllAsync(PaginationDto pagedto)
         {
-            _logger.LogInformation(
-                       "Get permissions request Page:{Page} Size:{Size}",
-                       pagedto.PageNumber,
-                       pagedto.PageSize);
             var (permissions, totalCount) = await _permissionRepo.GetAllAsync(pagedto);
 
             var data = permissions.Select(r => MapToResponseDto(r)).ToList();
 
             var pagedResponse = new PagedResponse<PermissionResponseDto>(
                 data,
-                totalCount,
                 pagedto.PageNumber,
-                pagedto.PageSize);
+                pagedto.PageSize,
+                totalCount);
 
             return ApiResponse<PagedResponse<PermissionResponseDto>>.SuccessResponse(pagedResponse);
 
         }
         public async Task<ApiResponse<PermissionResponseDto>> GetByIdAsync(int id) 
         {
-            _logger.LogInformation("Get permission by id {PermissionId}", id);
             var permission = await _permissionRepo.GetByIdAsync(id);
-            if (permission == null)
-            {
-                _logger.LogWarning("Update failed: permission not found {PermissionId}", id);
-                throw new NotFoundException("Permission not found");
-            }
+            if (permission == null)  throw new NotFoundException("Permission not found");
+            
             return ApiResponse<PermissionResponseDto>.SuccessResponse(MapToResponseDto(permission));
         }
 
@@ -68,7 +57,6 @@ namespace Ecommerce.Application.Services.Implementations
 
             var name = $"{entity}.{action}";
 
-            _logger.LogInformation("Create permission {PermissionName}", name);
 
             if (await _permissionRepo.ExistsByEntityActionAsync(entity, action))
                 throw new BusinessException("Permission already exists (Entity + Action must be unique).");
@@ -99,8 +87,6 @@ namespace Ecommerce.Application.Services.Implementations
                 }
             }
 
-            _logger.LogInformation("Permission created {PermissionId}", permission.Id);
-
             var item = MapToResponseDto(permission);
             return ApiResponse<PermissionResponseDto>.SuccessResponse(
                    item,
@@ -110,13 +96,9 @@ namespace Ecommerce.Application.Services.Implementations
 
         public async Task<ApiResponse<PermissionResponseDto>> UpdateAsync(int id, PermissionUpdateDto dto)
         {
-            _logger.LogInformation("Update permission {PermissionId}", id);
             var permission = await _permissionRepo.GetByIdAsync(id);
-            if (permission == null)
-            {
-                _logger.LogWarning("Update failed: permission not found {PermissionId}", id);
-                throw new NotFoundException("Permission not found");
-            }
+            if (permission == null)  throw new NotFoundException("Permission not found");
+            
             var entity = (dto.Entity ?? string.Empty).Trim().ToLowerInvariant();
             var action = (dto.Action ?? string.Empty).Trim().ToLowerInvariant();
 
@@ -135,7 +117,6 @@ namespace Ecommerce.Application.Services.Implementations
 
             await _permissionRepo.UpdateAsync(permission);
 
-            _logger.LogInformation("Permission updated {PermissionId}", permission.Id);
 
             var item = MapToResponseDto(permission);
             return ApiResponse<PermissionResponseDto>.SuccessResponse(
@@ -146,14 +127,10 @@ namespace Ecommerce.Application.Services.Implementations
 
         public async Task<ApiResponse<PermissionResponseDto>> DeleteAsync(int id)
         {
-            _logger.LogInformation("Delete permission {PermissionId}", id);
             var permission = await _permissionRepo.GetByIdAsync(id);
 
-            if (permission == null)
-            {
-                _logger.LogWarning("Delete failed: permission not found {PermissionId}", id);
-                throw new NotFoundException("Permission not found");
-            }
+            if (permission == null)  throw new NotFoundException("Permission not found");
+            
 
             // Step 1: Protect system permissions
             if (permission.IsSystem)
@@ -170,8 +147,6 @@ namespace Ecommerce.Application.Services.Implementations
 
             // Step 4: Hard delete role-permission mappings to keep DB clean.
             await _permissionRepo.HardDeleteRolePermissionsByPermissionIdAsync(permission.Id);
-
-            _logger.LogInformation("Permission deleted {PermissionId}", permission.Id);
 
             var item = MapToResponseDto(permission);
             return ApiResponse<PermissionResponseDto>.SuccessResponse(

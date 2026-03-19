@@ -6,7 +6,6 @@ using Ecommerce.Application.Services.Interfaces;
 using Ecommerce.Domain.Common.Settings;
 using Ecommerce.Domain.Entities;
 using Ecommerce.Domain.Interfaces;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Security.Claims;
 
@@ -19,14 +18,12 @@ namespace Ecommerce.Application.Services.Implementations
         private readonly IJwtService _jwtService;
         private readonly JwtSettings _jwtSettings;
         private readonly IPasswordHasher _passwordHasher;
-        private readonly ILogger<AuthService> _logger;
         public AuthService(
             IUserRepo userRepo,
             IRoleRepo roleRepo,
             IJwtService jwtService,
             IOptions<JwtSettings> jwtSettings,
-            IPasswordHasher passwordHasher,
-            ILogger<AuthService> logger
+            IPasswordHasher passwordHasher
             )
         {
             _userRepo = userRepo; 
@@ -34,27 +31,19 @@ namespace Ecommerce.Application.Services.Implementations
             _jwtService = jwtService;
             _jwtSettings = jwtSettings.Value;
             _passwordHasher = passwordHasher;
-            _logger = logger;
         } 
 
         public async Task RegisterAsync(RegisterDto request) 
         {
-            _logger.LogInformation("Register attempt for {Email}", request.Email);
             var exist = await _userRepo.GetByEmailAsync(request.Email);
 
-            if (exist != null)
-            {
-                _logger.LogWarning("Registration failed: Email {Email} already exists", request.Email);
-                throw new ConflictException("Email already exists");
-            }
-
+            if (exist != null) throw new ConflictException("Email already exists");
+            
             var defaultRole = await _roleRepo.GetByNameRoleAsync("User");
-            if (defaultRole == null)
-            {
-                _logger.LogError("Default Role 'User' not found in database.");
-                throw new Exception("System role configuration error");
-            }
 
+            if (defaultRole == null)
+                throw new Exception("System role configuration error");
+            
             var user = new User
             {
                 Email = request.Email,
@@ -64,19 +53,16 @@ namespace Ecommerce.Application.Services.Implementations
             };
 
             await _userRepo.AddAsync(user);
-
-            _logger.LogInformation("User registered successfully {Email}", request.Email);
         }
 
         public async Task<AuthResponseDto> LoginAsync(LoginDto request)
         {
-            _logger.LogInformation("User login attempt: {Email}", request.Email);
+
             var user = await _userRepo.GetByEmailAsync(request.Email);
 
             if (user == null ||
                 !_passwordHasher.Verify(request.Password, user.PasswordHash))
             {
-                _logger.LogWarning("Login failed for {Email}", request.Email);
                 throw new UnauthorizedException("Invalid email or password");
             }
 
@@ -84,12 +70,9 @@ namespace Ecommerce.Application.Services.Implementations
 
             if (userWithPermissions == null)
             {
-                _logger.LogWarning("User not found {UserId}", userWithPermissions);
                 throw new NotFoundException("User not found");
             }
 
-
-            _logger.LogInformation("User login success: {Email}", request.Email);
 
             var accessToken = _jwtService.GenerateAccessToken(userWithPermissions);
             var refreshToken = _jwtService.GenerateRefreshToken();
@@ -111,17 +94,14 @@ namespace Ecommerce.Application.Services.Implementations
         public async Task<AuthResponseDto> RefreshTokenAsync(
             RefreshTokenRequestDto request)
         {
-            _logger.LogInformation("Refresh token attempt");
 
             var principal = _jwtService.GetPrincipalFromExpiredToken(request.AccessToken);
 
             var email = principal.FindFirst(ClaimTypes.Email)?.Value;
 
             if (email == null)
-            {
-                _logger.LogWarning("Refresh token failed - email not found in token");
                 throw new UnauthorizedException("Invalid token");
-            }
+            
             var idClaim = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
             if (!int.TryParse(idClaim, out var userId))
@@ -131,24 +111,18 @@ namespace Ecommerce.Application.Services.Implementations
 
             var user = await _userRepo.GetByIdWithPermissionsAsync(userId);
 
-            if (user == null)
-            {
-                _logger.LogWarning("Refresh token failed - user not found {Email}", email);
-                throw new NotFoundException("User not found");
-            }
+            if (user == null) throw new NotFoundException("User not found");
+            
             if (user.RefreshToken != request.RefreshToken)
             {
-                _logger.LogWarning("Refresh token mismatch for {Email}", email);
                 throw new UnauthorizedException("Invalid refresh token");
             }
+
             if (user.RefreshTokenExpiryTime <= DateTime.UtcNow)
             {
-                _logger.LogWarning("Refresh token mismatch for {Email}", email);
                 throw new UnauthorizedException("Refresh token expired");
             }
 
-
-            _logger.LogInformation("Refresh token success for {Email}", email);
 
             var newAccessToken = _jwtService.GenerateAccessToken(user);
             var newRefreshToken = _jwtService.GenerateRefreshToken();

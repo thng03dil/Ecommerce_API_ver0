@@ -15,23 +15,29 @@ namespace Ecommerce.Infrastructure.Repositories
         {
             _context = context;
         }
-        public async Task<(IEnumerable<Category>, int totalCount)> GetAllAsync (PaginationDto pagedto) { 
-            var query = _context.Categories
-                    .AsNoTracking()
-                    .Include(c => c.Products)
-                    .Where(x => !x.IsDeleted);
 
-            var totalItem = await query.CountAsync();
+        public async Task<(IEnumerable<Category>, int)> GetFilteredAsync(
+            CategoryFilterDto filter,
+            PaginationDto pagination)
+        {
+            var query = _context.Categories
+                .AsNoTracking()
+                .Include(c => c.Products)
+                .Where(x => !x.IsDeleted)
+                .ApplySearch(filter.Keyword, c => c.Name)
+                .ApplySearch(filter.Slug, c => c.Slug)
+                .ApplySorting(filter.SortBy ?? "Id", filter.SortOrder ?? "asc");
+
+            var total = await query.CountAsync();
 
             var items = await query
-                .OrderBy(c => c.Id)
-                .Skip((pagedto.PageNumber - 1) * pagedto.PageSize) 
-                .Take(pagedto.PageSize)
+                .ApplyPagination(pagination.PageNumber, pagination.PageSize)
                 .ToListAsync();
-            return (items,totalItem);
+
+            return (items, total);
         }
 
-        public async Task<Category?> GetByIdAsync(int id) {
+        public async Task<Category?> GetByIdAsync(int id) { 
             return await _context.Categories
                     .AsNoTracking()
                     .Include(c => c.Products)
@@ -68,26 +74,6 @@ namespace Ecommerce.Infrastructure.Repositories
         public async Task SaveChangesAsync() {
             await _context.SaveChangesAsync();
         }
-        //filter
-        public async Task<(IEnumerable<Category>, int)> GetFilteredAsync(
-             CategoryFilterDto filter,
-             PaginationDto pagination)
-        {
-            var query = _context.Categories
-                .AsNoTracking()
-                .Include(c => c.Products)
-                .Where(x => !x.IsDeleted)
-                .ApplySearch(filter.Keyword, c => c.Name)
-                .ApplySearch(filter.Slug, c => c.Slug)
-                .ApplySorting(filter.SortBy ?? "Id", filter.SortOrder ?? "asc");
-
-            var total = await query.CountAsync();
-
-            var items = await query
-                .ApplyPagination(pagination.PageNumber, pagination.PageSize)
-                .ToListAsync();
-
-            return (items, total);
-        }
+       
     }
 }

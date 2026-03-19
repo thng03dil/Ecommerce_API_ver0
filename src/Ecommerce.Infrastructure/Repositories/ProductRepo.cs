@@ -16,71 +16,7 @@ namespace Ecommerce.Infrastructure.Repositories
         {
             _context = context;
         }
-        public async Task<(IEnumerable<Product>, int totalCount)> GetAllAsync(PaginationDto pagedto)
-        {
-            var query = _context.Products
-                        .AsNoTracking()
-                        .Include(p => p.Category)
-                        .Where(x => !x.IsDeleted);
 
-            var totalItem = await query.CountAsync();
-
-            var items = await query
-                .OrderBy(p => p.Id)
-                .Skip((pagedto.PageNumber - 1) * pagedto.PageSize)
-                .Take(pagedto.PageSize) 
-                .ToListAsync();
-            return (items, totalItem);
-        }
-
-        public async Task<int> CountAsync()
-        {
-            var query = _context.Products
-                        .AsNoTracking()
-                        .Where(x => !x.IsDeleted);
-
-            return await query.CountAsync();
-        }
-
-        public async Task<bool> CategoryExistsAsync(int categoryId)
-        {
-            return await _context.Categories
-                .AnyAsync(c => c.Id == categoryId && !c.IsDeleted);
-        }
-
-        public async Task CreateAsync(Product product)
-        {
-            await _context.Products.AddAsync(product);
-            await _context.SaveChangesAsync();
-        }
-
-        public async Task LoadCategoryAsync(Product product)
-        {
-            await _context.Entry(product)
-                .Reference(p => p.Category)
-                .LoadAsync();
-        }
-
-
-        public async Task<Product?> GetByIdAsync(int id)
-        {
-            return await _context.Products
-                .FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
-        }
-       
-        public async Task UpdateAsync(Product product)
-        {
-
-           _context.Products.Update(product);
-            await _context.SaveChangesAsync();
-        }
-
-        public async Task SaveChangesAsync()
-        {
-            await _context.SaveChangesAsync();
-        }
-
-        //filter
         public async Task<(IEnumerable<Product>, int)> GetFilteredAsync(
             ProductFilterDto filter,
             PaginationDto pagination)
@@ -127,5 +63,53 @@ namespace Ecommerce.Infrastructure.Repositories
 
             return (items, total);
         }
+        public async Task<int> CountAsync()
+        {
+            var query = _context.Products
+                        .AsNoTracking()
+                        .Where(x => !x.IsDeleted);
+
+            return await query.CountAsync();
+        }
+
+        public async Task<bool> CategoryExistsAsync(int categoryId)
+        {
+            return await _context.Categories
+                .AnyAsync(c => c.Id == categoryId && !c.IsDeleted);
+        }
+
+        public async Task CreateAsync(Product product)
+        {
+            await _context.Products.AddAsync(product);
+            await _context.SaveChangesAsync();
+        }
+        //Explicit Loading (Tải tường minh) nạp bù dữ liệu
+        public async Task LoadCategoryAsync(Product product)
+        {
+            await _context.Entry(product)
+                .Reference(p => p.Category)
+                .LoadAsync();
+        }
+
+
+        public async Task<Product?> GetByIdAsync(int id)
+        {
+            return await _context.Products
+                .FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
+        }
+       
+        public async Task UpdateAsync(Product product)
+        {
+
+           _context.Products.Update(product);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task SaveChangesAsync()
+        {
+            await _context.SaveChangesAsync();
+        }
+
+       
     }
 }

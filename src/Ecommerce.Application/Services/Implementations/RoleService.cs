@@ -15,44 +15,33 @@ namespace Ecommerce.Application.Services.Implementations
     {
         private readonly IRoleRepo _roleRepo;
         private readonly IPermissionRepo _permissionRepo;
-        private readonly ILogger<RoleService> _logger;
         public RoleService(
             IRoleRepo roleRepo,
-            IPermissionRepo permissionRepo,
-            ILogger<RoleService> logger)
+            IPermissionRepo permissionRepo)
         {
             _roleRepo = roleRepo;
             _permissionRepo = permissionRepo;
-            _logger = logger;
         }
         public async Task<ApiResponse<PagedResponse<RoleResponseDto>>> GetAllAsync(PaginationDto pagedto)
         {
-            _logger.LogInformation(
-                      "Get roles request Page:{Page} Size:{Size}",
-                      pagedto.PageNumber,
-                      pagedto.PageSize);
             var (roles, totalCount) = await _roleRepo.GetAllAsync(pagedto);
 
             var data = roles.Select(r => MapToResponseDto(r)).ToList();
 
             var pagedResponse = new PagedResponse<RoleResponseDto>(
                 data,
-                totalCount,
                 pagedto.PageNumber,
-                pagedto.PageSize);
+                pagedto.PageSize,
+                totalCount);
 
             return ApiResponse<PagedResponse<RoleResponseDto>>.SuccessResponse(pagedResponse);
         }
         public async Task<ApiResponse<RoleWithPermissionsDto>> GetByIdAsync(int id)
         {
-            _logger.LogInformation("Get role by id {RoleId}", id);
             var role = await _roleRepo.GetByIdWithPermissionsAsync(id);
             if (role == null)
-            {
-                _logger.LogWarning("Get failed: permission not found {PermissionId}", id);
-
                 throw new NotFoundException("Role not found");
-            }
+            
 
             var dto = new RoleWithPermissionsDto
             {
@@ -77,12 +66,9 @@ namespace Ecommerce.Application.Services.Implementations
 
         public async Task<ApiResponse<RoleResponseDto>> CreateAsync(RoleCreateDto dto)
         {
-            _logger.LogInformation("Create role {Name}", dto.Name);
             if (await _roleRepo.ExistsByNameAsync(dto.Name))
-            {
-                _logger.LogWarning("Create fail: Role {Name} already exists", dto.Name);
-                throw new BusinessException("Role name already exists");
-            }
+              throw new BusinessException("Role name already exists");
+            
             if (dto.PermissionIds != null && dto.PermissionIds.Any())
             {
                 var allExist = await _permissionRepo.AllIdsExistAsync(dto.PermissionIds);
