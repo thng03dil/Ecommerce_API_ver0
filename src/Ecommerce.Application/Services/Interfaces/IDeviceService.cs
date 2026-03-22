@@ -6,8 +6,6 @@ namespace Ecommerce.Application.Services.Interfaces
 {
     public interface IDeviceService
     {
-        string GetIpAddress();
-        string GetUserAgent();
-        string GenerateDeviceId(string userAgent, string ip);
+        string GetDeviceId();
     }
 }

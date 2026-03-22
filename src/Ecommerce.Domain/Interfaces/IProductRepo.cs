@@ -1,4 +1,4 @@
-﻿using Ecommerce.Application.Common.Pagination;
+using Ecommerce.Application.Common.Pagination;
 using Ecommerce.Domain.Common.Filters;
 using Ecommerce.Domain.Entities;
 
@@ -6,10 +6,6 @@ namespace Ecommerce.Domain.Interfaces
 {
     public interface IProductRepo
     {
-       // Task<(IEnumerable<Product>, int totalCount)> GetAllAsync(PaginationDto pagedto);
-
-        Task<int> CountAsync();
-
         Task<bool> CategoryExistsAsync(int categoryId);
 
         Task LoadCategoryAsync(Product product); 

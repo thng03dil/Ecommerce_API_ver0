@@ -1,4 +1,4 @@
-﻿using Ecommerce.Application.Common.Pagination;
+using Ecommerce.Application.Common.Pagination;
 using Ecommerce.Domain.Entities;
 using Ecommerce.Domain.Interfaces;
 using Ecommerce.Infrastructure.Data;
@@ -46,10 +46,6 @@ namespace Ecommerce.Infrastructure.Repositories
                 .ThenInclude(rp => rp.Permission)
                 .FirstOrDefaultAsync(r => r.Id == id && !r.IsDeleted);
         }
-        public async Task<bool> IsRoleInUseAsync(int roleId)
-        {
-            return await _context.Users.AnyAsync(u => u.RoleId == roleId && !u.IsDeleted);
-        }
         public async Task<Role?> GetByNameRoleAsync(string nameRole)
         {
             return await _context.Roles
@@ -68,11 +64,6 @@ namespace Ecommerce.Infrastructure.Repositories
         public async Task UpdateAsync(Role role)
         {
             _context.Roles.Update(role);
-            await _context.SaveChangesAsync();
-        }
-
-        public async Task SaveChangesAsync()
-        {
             await _context.SaveChangesAsync();
         }
     }

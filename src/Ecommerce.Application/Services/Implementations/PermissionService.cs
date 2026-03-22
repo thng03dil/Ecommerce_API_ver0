@@ -1,3 +1,4 @@
+using Ecommerce.Application.Common.Caching;
 using Ecommerce.Application.Common.Pagination;
 using Ecommerce.Application.Common.Responses;
 using Ecommerce.Application.DTOs.Permission;
@@ -5,45 +6,70 @@ using Ecommerce.Application.Exceptions;
 using Ecommerce.Application.Services.Interfaces;
 using Ecommerce.Domain.Entities;
 using Ecommerce.Domain.Interfaces;
-using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Text;
+using System.Threading;
 
 namespace Ecommerce.Application.Services.Implementations
 {
     public class PermissionService : IPermissionService
     {
+        private static readonly TimeSpan PermissionCacheTtl = TimeSpan.FromMinutes(30);
+        private static readonly SemaphoreSlim _listLoadLock = new(1, 1);
+
         private readonly IPermissionRepo _permissionRepo;
         private readonly IRoleRepo _roleRepo;
+        private readonly ICacheService _cacheService;
 
-        public PermissionService( 
+        public PermissionService(
             IPermissionRepo permissionRepo,
-            IRoleRepo roleRepo)
+            IRoleRepo roleRepo,
+            ICacheService cacheService)
         {
             _permissionRepo = permissionRepo;
             _roleRepo = roleRepo;
+            _cacheService = cacheService;
         }
+
         public async Task<ApiResponse<PagedResponse<PermissionResponseDto>>> GetAllAsync(PaginationDto pagedto)
         {
-            var (permissions, totalCount) = await _permissionRepo.GetAllAsync(pagedto);
+            var version = await _cacheService.GetVersionAsync(CacheKeyGenerator.PermissionVersionKey());
+            var cacheKey = CacheKeyGenerator.PermissionList(version, pagedto.PageNumber, pagedto.PageSize);
 
-            var data = permissions.Select(r => MapToResponseDto(r)).ToList();
+            var pagedResponse = await _cacheService.GetAsync<PagedResponse<PermissionResponseDto>>(cacheKey);
+            if (pagedResponse != null)
+                return ApiResponse<PagedResponse<PermissionResponseDto>>.SuccessResponse(pagedResponse);
 
-            var pagedResponse = new PagedResponse<PermissionResponseDto>(
-                data,
-                pagedto.PageNumber,
-                pagedto.PageSize,
-                totalCount);
+            await _listLoadLock.WaitAsync();
+            try
+            {
+                version = await _cacheService.GetVersionAsync(CacheKeyGenerator.PermissionVersionKey());
+                cacheKey = CacheKeyGenerator.PermissionList(version, pagedto.PageNumber, pagedto.PageSize);
 
-            return ApiResponse<PagedResponse<PermissionResponseDto>>.SuccessResponse(pagedResponse);
+                pagedResponse = await _cacheService.GetAsync<PagedResponse<PermissionResponseDto>>(cacheKey);
+                if (pagedResponse != null)
+                    return ApiResponse<PagedResponse<PermissionResponseDto>>.SuccessResponse(pagedResponse);
 
+                var (permissions, totalCount) = await _permissionRepo.GetAllAsync(pagedto);
+                var data = permissions.Select(r => MapToResponseDto(r)).ToList();
+                pagedResponse = new PagedResponse<PermissionResponseDto>(
+                    data,
+                    pagedto.PageNumber,
+                    pagedto.PageSize,
+                    totalCount);
+                await _cacheService.SetAsync(cacheKey, pagedResponse, PermissionCacheTtl);
+            }
+            finally
+            {
+                _listLoadLock.Release();
+            }
+
+            return ApiResponse<PagedResponse<PermissionResponseDto>>.SuccessResponse(pagedResponse!);
         }
-        public async Task<ApiResponse<PermissionResponseDto>> GetByIdAsync(int id) 
+
+        public async Task<ApiResponse<PermissionResponseDto>> GetByIdAsync(int id)
         {
             var permission = await _permissionRepo.GetByIdAsync(id);
-            if (permission == null)  throw new NotFoundException("Permission not found");
-            
+            if (permission == null) throw new NotFoundException("Permission not found");
+
             return ApiResponse<PermissionResponseDto>.SuccessResponse(MapToResponseDto(permission));
         }
 
@@ -72,7 +98,6 @@ namespace Ecommerce.Application.Services.Implementations
             };
             await _permissionRepo.AddAsync(permission);
 
-            // Auto-assign new permission to Admin role (highest role).
             var adminRole = await _roleRepo.GetByNameRoleAsync("Admin");
             if (adminRole != null)
             {
@@ -87,6 +112,8 @@ namespace Ecommerce.Application.Services.Implementations
                 }
             }
 
+            await _cacheService.IncrementAsync(CacheKeyGenerator.PermissionVersionKey());
+
             var item = MapToResponseDto(permission);
             return ApiResponse<PermissionResponseDto>.SuccessResponse(
                    item,
@@ -97,8 +124,8 @@ namespace Ecommerce.Application.Services.Implementations
         public async Task<ApiResponse<PermissionResponseDto>> UpdateAsync(int id, PermissionUpdateDto dto)
         {
             var permission = await _permissionRepo.GetByIdAsync(id);
-            if (permission == null)  throw new NotFoundException("Permission not found");
-            
+            if (permission == null) throw new NotFoundException("Permission not found");
+
             var entity = (dto.Entity ?? string.Empty).Trim().ToLowerInvariant();
             var action = (dto.Action ?? string.Empty).Trim().ToLowerInvariant();
 
@@ -117,6 +144,7 @@ namespace Ecommerce.Application.Services.Implementations
 
             await _permissionRepo.UpdateAsync(permission);
 
+            await _cacheService.IncrementAsync(CacheKeyGenerator.PermissionVersionKey());
 
             var item = MapToResponseDto(permission);
             return ApiResponse<PermissionResponseDto>.SuccessResponse(
@@ -129,24 +157,22 @@ namespace Ecommerce.Application.Services.Implementations
         {
             var permission = await _permissionRepo.GetByIdAsync(id);
 
-            if (permission == null)  throw new NotFoundException("Permission not found");
-            
+            if (permission == null) throw new NotFoundException("Permission not found");
 
-            // Step 1: Protect system permissions
+
             if (permission.IsSystem)
                 throw new BusinessException("Do not delete system permission");
 
-            // Step 2: Allow delete even if Admin holds it, but block if any non-Admin role is using it.
             if (await _permissionRepo.IsAssignedToAnyNonAdminRoleAsync(permission.Id))
                 throw new BusinessException("Permission is assigned by role user. Please remove permissions before deleting");
 
-            // Step 3: Soft delete
             permission.IsDeleted = true;
 
             await _permissionRepo.SaveChangesAsync();
 
-            // Step 4: Hard delete role-permission mappings to keep DB clean.
             await _permissionRepo.HardDeleteRolePermissionsByPermissionIdAsync(permission.Id);
+
+            await _cacheService.IncrementAsync(CacheKeyGenerator.PermissionVersionKey());
 
             var item = MapToResponseDto(permission);
             return ApiResponse<PermissionResponseDto>.SuccessResponse(

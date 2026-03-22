@@ -1,12 +1,12 @@
 using Ecommerce.Domain.Common.Settings;
 using Ecommerce.Domain.Entities;
+using Ecommerce.Domain.Interfaces;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
-using Ecommerce.Domain.Interfaces;
 
 namespace Ecommerce.Infrastructure.SecurityHelpers
 {
@@ -28,11 +28,14 @@ namespace Ecommerce.Infrastructure.SecurityHelpers
             _keyBytes = Encoding.UTF8.GetBytes(_jwtSettings.Key);
         }
 
-        public string GenerateAccessToken(User user)
+        public string GenerateAccessToken(
+            User user,
+            Guid sessionId,
+            int sessionVersion,
+            string fingerprint)
         {
             if (user.Role == null)
                 throw new InvalidOperationException("User Role is not loaded when generating token. Please ensure Role and Permissions are included when fetching the User from the database.");
-            
 
             var claims = new List<Claim>
             {
@@ -40,7 +43,10 @@ namespace Ecommerce.Infrastructure.SecurityHelpers
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new Claim(ClaimTypes.Email, user.Email),
-                new Claim(ClaimTypes.Role, user.Role.Name)
+                new Claim(ClaimTypes.Role, user.Role.Name),
+                new Claim("sid", sessionId.ToString()),
+                new Claim("sv", sessionVersion.ToString()),
+                new Claim("fp", fingerprint ?? string.Empty),
             };
 
             if (user.Role?.RolePermissions != null)
@@ -93,7 +99,7 @@ namespace Ecommerce.Infrastructure.SecurityHelpers
                 ValidateIssuer = true,
                 ValidateAudience = true,
                 ValidateIssuerSigningKey = true,
-                ValidateLifetime = false, // allow expired tokens
+                ValidateLifetime = false,
 
                 ValidIssuer = _jwtSettings.Issuer,
                 ValidAudience = _jwtSettings.Audience,
@@ -118,13 +124,32 @@ namespace Ecommerce.Infrastructure.SecurityHelpers
 
             return principal;
         }
+
         public string HashToken(string token)
         {
             if (string.IsNullOrEmpty(token)) return string.Empty;
 
-            using var sha256 = System.Security.Cryptography.SHA256.Create();
-            var bytes = sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(token));
+            using var sha256 = SHA256.Create();
+            var bytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(token));
             return Convert.ToBase64String(bytes);
+        }
+
+        public TimeSpan? GetAccessTokenRemainingLifetime(string token)
+        {
+            try
+            {
+                var handler = new JwtSecurityTokenHandler();
+                if (!handler.CanReadToken(token))
+                    return null;
+
+                var jwt = handler.ReadJwtToken(token);
+                var rem = jwt.ValidTo - DateTime.UtcNow;
+                return rem <= TimeSpan.Zero ? TimeSpan.Zero : rem;
+            }
+            catch
+            {
+                return null;
+            }
         }
     }
 }

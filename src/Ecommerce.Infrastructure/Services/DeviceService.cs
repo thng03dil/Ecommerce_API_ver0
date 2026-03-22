@@ -1,4 +1,4 @@
-﻿using Ecommerce.Application.Services.Interfaces;
+using Ecommerce.Application.Services.Interfaces;
 using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
@@ -9,27 +9,23 @@ namespace Ecommerce.Infrastructure.Services
     public class DeviceService : IDeviceService
     {
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private const string HEADER_NAME = "X-Device-Id";
 
         public DeviceService(IHttpContextAccessor httpContextAccessor)
         {
             _httpContextAccessor = httpContextAccessor;
         }
 
-        public string GetIpAddress()
+        public string GetDeviceId()
         {
-            return _httpContextAccessor.HttpContext?.Connection?.RemoteIpAddress?.ToString()
-                   ?? "unknown";
-        }
+            var deviceId = _httpContextAccessor
+                .HttpContext?
+                .Request
+                .Headers[HEADER_NAME]
+                .FirstOrDefault();
 
-        public string GetUserAgent()
-        {
-            return _httpContextAccessor.HttpContext?.Request.Headers["User-Agent"].ToString()
-                   ?? "unknown";
-        }
-
-        public string GenerateDeviceId(string userAgent, string ip)
-        {
-            return $"{userAgent}-{ip}".GetHashCode().ToString();
+            
+            return deviceId ?? string.Empty;
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿using Ecommerce.Domain.Entities;
+using Ecommerce.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -31,6 +31,25 @@ namespace Ecommerce.Infrastructure.Data.Configurations
               .HasDefaultValueSql("GETDATE()");
 
             builder.Property(x => x.UpdatedAt)
+                .IsRequired(false);
+
+            builder.Property(x => x.SessionVersion)
+                .IsRequired()
+                .HasDefaultValue(0);
+
+            builder.Property(x => x.CurrentSessionId)
+                .IsRequired(false);
+
+            builder.Property(x => x.LastLoginIpHash)
+                .HasMaxLength(500)
+                .IsRequired(false);
+
+            builder.Property(x => x.LastDeviceId)
+                .HasMaxLength(256)
+                .IsRequired(false);
+
+            builder.Property(x => x.LastFingerprintHash)
+                .HasMaxLength(500)
                 .IsRequired(false);
 
             builder.HasOne(u => u.Role)

@@ -1,4 +1,4 @@
-﻿using Ecommerce.Application.Services.Interfaces;
+using Ecommerce.Application.Services.Interfaces;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -13,8 +13,9 @@ namespace Ecommerce.Infrastructure.RedisCaching
 {
     public class RedisCacheOptions
     {
-        public JsonSerializerOptions JsonSerializerOptions { get; set; } = new JsonSerializerOptions(JsonSerializerDefaults.Web)
+        public JsonSerializerOptions JsonSerializerOptions { get; set; } = new JsonSerializerOptions
         {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
             ReferenceHandler = ReferenceHandler.IgnoreCycles,
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
         };
@@ -57,12 +58,16 @@ namespace Ecommerce.Infrastructure.RedisCaching
                 }
 
                 _logger.LogDebug("Cache hit for key: {CacheKey}", key);
-                // Sử dụng config _options để deserialize
                 return JsonSerializer.Deserialize<T>(data, _options.JsonSerializerOptions);
+            }
+            catch (RedisConnectionException ex)
+            {
+                _logger.LogWarning(ex, "Redis unavailable. Fallback to DB for key: {CacheKey}", key);
+                return default;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting value from Redis cache for key: {CacheKey}", key);
+                _logger.LogWarning(ex, "Redis error reading key: {CacheKey}. Fallback to DB.", key);
                 return default;
             }
         }
@@ -73,19 +78,21 @@ namespace Ecommerce.Infrastructure.RedisCaching
             {
                 var cacheOptions = new DistributedCacheEntryOptions
                 {
-                    // Lấy thời gian TTL từ settings cấu hình (tránh hardcode)
                     AbsoluteExpirationRelativeToNow = expiration ?? TimeSpan.FromMinutes(_options.DefaultExpirationMinutes)
                 };
 
-                // Sử dụng config _options để serialize
                 var serializedData = JsonSerializer.Serialize(value, _options.JsonSerializerOptions);
                 await _distributedCache.SetStringAsync(key, serializedData, cacheOptions);
 
                 _logger.LogDebug("Successfully set cache for key: {CacheKey}", key);
             }
+            catch (RedisConnectionException ex)
+            {
+                _logger.LogWarning(ex, "Redis unavailable. Skip cache write for key: {CacheKey}", key);
+            }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error setting value to Redis cache for key: {CacheKey}", key);
+                _logger.LogWarning(ex, "Redis error writing key: {CacheKey}. Skip cache.", key);
             }
         }
 
@@ -96,9 +103,35 @@ namespace Ecommerce.Infrastructure.RedisCaching
                 await _distributedCache.RemoveAsync(key);
                 _logger.LogDebug("Successfully removed cache for key: {CacheKey}", key);
             }
+            catch (RedisConnectionException ex)
+            {
+                _logger.LogWarning(ex, "Redis unavailable. Skip cache remove for key: {CacheKey}", key);
+            }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error removing value from Redis cache for key: {CacheKey}", key);
+                _logger.LogWarning(ex, "Redis error removing key: {CacheKey}. Skip.", key);
+            }
+        }
+
+        public async Task<string> GetVersionAsync(string key)
+        {
+            try
+            {
+                var val = await _db.StringGetAsync(key);
+                if (!val.HasValue || val.IsNullOrEmpty)
+                    return "1";
+
+                return val.ToString()!;
+            }
+            catch (RedisConnectionException ex)
+            {
+                _logger.LogWarning(ex, "Redis unavailable. Fallback version '1' for key: {CacheKey}", key);
+                return "1";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Redis error reading version for key: {CacheKey}. Fallback to '1'.", key);
+                return "1";
             }
         }
 
@@ -106,15 +139,19 @@ namespace Ecommerce.Infrastructure.RedisCaching
         {
             try
             {
-                // Sử dụng hàm gốc của Redis để tăng số chuẩn Atomic, không sợ Race Condition
                 var newValue = await _db.StringIncrementAsync(key);
                 _logger.LogDebug("Successfully incremented cache for key: {CacheKey} to {Value}", key, newValue);
                 return newValue;
             }
+            catch (RedisConnectionException ex)
+            {
+                _logger.LogWarning(ex, "Redis unavailable. Increment soft-fail for key: {CacheKey}", key);
+                return 1L;
+            }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error incrementing cache for key: {CacheKey}", key);
-                return DateTime.UtcNow.Ticks; // Fallback an toàn nếu Redis lỗi
+                _logger.LogWarning(ex, "Redis error incrementing key: {CacheKey}. Soft-fail return 1.", key);
+                return 1L;
             }
         }
 
@@ -123,18 +160,36 @@ namespace Ecommerce.Infrastructure.RedisCaching
             var cachedValue = await GetAsync<T>(key);
 
             if (cachedValue != null && !cachedValue.Equals(default(T)))
-            {
                 return cachedValue;
-            }
 
             var value = await factory();
 
             if (value != null)
-            {
                 await SetAsync(key, value, expiration);
-            }
 
             return value;
+        }
+        public async Task RemoveByPrefixAsync(string prefix)
+        {
+            try
+            {
+                var endpoints = _redis.GetEndPoints();
+                foreach (var endpoint in endpoints)
+                {
+                    var server = _redis.GetServer(endpoint);
+                    // get all key start by prefix (ex: product-list:*)
+                    var keys = server.Keys(database: _db.Database, pattern: $"{prefix}*").ToArray();
+                    foreach (var key in keys)
+                    {
+                        await _db.KeyDeleteAsync(key);
+                    }
+                }
+                _logger.LogInformation("Removed cache pattern: {Prefix}*", prefix);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error removing cache pattern: {Prefix}", prefix);
+            }
         }
     }
 }

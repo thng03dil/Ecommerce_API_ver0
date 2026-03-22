@@ -392,19 +392,28 @@ namespace Ecommerce.Infrastructure.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<string>("DeviceId")
-                        .HasColumnType("nvarchar(max)");
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
 
                     b.Property<DateTime>("ExpiryDate")
                         .HasColumnType("datetime2");
 
+                    b.Property<Guid>("FamilyId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("IpAddress")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
                     b.Property<bool>("IsRevoked")
                         .HasColumnType("bit");
+
+                    b.Property<Guid>("SessionId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("TokenHash")
                         .IsRequired()
@@ -415,7 +424,8 @@ namespace Ecommerce.Infrastructure.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<string>("UserAgent")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<int>("UserId")
                         .HasColumnType("int");
@@ -449,6 +459,9 @@ namespace Ecommerce.Infrastructure.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsSystem")
+                        .HasColumnType("bit");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -471,6 +484,7 @@ namespace Ecommerce.Infrastructure.Migrations
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             Description = "System administrator with full access",
                             IsDeleted = false,
+                            IsSystem = true,
                             Name = "Admin"
                         },
                         new
@@ -479,6 +493,7 @@ namespace Ecommerce.Infrastructure.Migrations
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             Description = "Registered user with limited access",
                             IsDeleted = false,
+                            IsSystem = true,
                             Name = "User"
                         });
                 });
@@ -511,6 +526,9 @@ namespace Ecommerce.Infrastructure.Migrations
                         .HasColumnType("datetime2")
                         .HasDefaultValueSql("GETDATE()");
 
+                    b.Property<Guid?>("CurrentSessionId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(256)
@@ -519,6 +537,18 @@ namespace Ecommerce.Infrastructure.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
+                    b.Property<string>("LastDeviceId")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("LastFingerprintHash")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("LastLoginIpHash")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasMaxLength(255)
@@ -526,6 +556,11 @@ namespace Ecommerce.Infrastructure.Migrations
 
                     b.Property<int>("RoleId")
                         .HasColumnType("int");
+
+                    b.Property<int>("SessionVersion")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");

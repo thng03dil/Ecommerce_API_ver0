@@ -52,7 +52,7 @@ namespace Ecommerce.API.Middleware
                  context.TraceIdentifier
              );
 
-            var response = new ErrorResponse
+            var response = new ErrorResponseDto
             {
                 StatusCode = statusCode,
                 Success = false,

@@ -60,11 +60,7 @@ namespace Ecommerce.Infrastructure.Repositories
         {
             return await _context.Products.AnyAsync(p => p.CategoryId == categoryId && !p.IsDeleted);
         }
-        public async Task<bool> SlugExistsAsync(string slug, int excludeId)
-        {
-            return await _context.Categories
-                .AnyAsync(x => x.Slug == slug && x.Id != excludeId);
-        }
+
         public async Task UpdateAsync(Category category) {
 
             _context.Categories.Update(category);

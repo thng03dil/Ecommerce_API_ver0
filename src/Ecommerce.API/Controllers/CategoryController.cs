@@ -9,11 +9,11 @@ using Microsoft.AspNetCore.Mvc;
 namespace Ecommerce.API.Controllers
 {
    
-    public class CategoriesController : BaseController
+    public class CategoryController : BaseController
     {
         private readonly ICategoryService _service;
 
-        public CategoriesController(ICategoryService service)
+        public CategoryController(ICategoryService service)
         { 
             _service = service;
         }

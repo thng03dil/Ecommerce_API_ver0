@@ -1,29 +1,39 @@
-
+using Ecommerce.Application.Common.Auth;
+using Ecommerce.Application.Common.Caching;
 using Ecommerce.Application.DTOs.Auth;
 using Ecommerce.Application.DTOs.Common;
 using Ecommerce.Application.Exceptions;
-using Ecommerce.Application.Extensions;
 using Ecommerce.Application.Services.Interfaces;
 using Ecommerce.Domain.Common.Settings;
 using Ecommerce.Domain.Entities;
 using Ecommerce.Domain.Interfaces;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System.Collections.Concurrent;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Threading;
 
 namespace Ecommerce.Application.Services.Implementations
 {
     public class AuthService : IAuthService
     {
+        private const int MaxLoginFailures = 5;
+        private static readonly TimeSpan LoginFailureWindow = TimeSpan.FromMinutes(15);
+
+        private static readonly ConcurrentDictionary<int, SemaphoreSlim> _userAuthLocks = new();
+
         private readonly IUserRepo _userRepo;
-        private readonly IRefreshTokenRepo _refreshTokenRepo;
         private readonly IRoleRepo _roleRepo;
         private readonly IJwtService _jwtService;
         private readonly JwtSettings _jwtSettings;
         private readonly IPasswordHasher _passwordHasher;
-        private readonly IDeviceService _deviceService;
+        private readonly IRefreshTokenRepo _refreshTokenRepo;
         private readonly ICacheService _cacheService;
-        private readonly ILogger<AuthService> _logger;
+        private readonly IDeviceService _deviceService;
+        private readonly ISecurityFingerprintHelper _fingerprint;
+        private readonly ISessionValidationService _sessionValidation;
+        private readonly ITokenBlacklistService _tokenBlacklist;
+
         public AuthService(
             IUserRepo userRepo,
             IRoleRepo roleRepo,
@@ -31,33 +41,39 @@ namespace Ecommerce.Application.Services.Implementations
             IOptions<JwtSettings> jwtSettings,
             IPasswordHasher passwordHasher,
             IRefreshTokenRepo refreshTokenRepo,
-            IDeviceService deviceService,
             ICacheService cacheService,
-            ILogger<AuthService> logger
-            )
+            IDeviceService deviceService,
+            ISecurityFingerprintHelper fingerprint,
+            ISessionValidationService sessionValidation,
+            ITokenBlacklistService tokenBlacklist)
         {
-            _userRepo = userRepo; 
+            _userRepo = userRepo;
             _roleRepo = roleRepo;
             _jwtService = jwtService;
             _jwtSettings = jwtSettings.Value;
             _passwordHasher = passwordHasher;
             _refreshTokenRepo = refreshTokenRepo;
-            _deviceService = deviceService;
             _cacheService = cacheService;
-            _logger = logger;
-        } 
+            _deviceService = deviceService;
+            _fingerprint = fingerprint;
+            _sessionValidation = sessionValidation;
+            _tokenBlacklist = tokenBlacklist;
+        }
 
-        public async Task RegisterAsync(RegisterDto request) 
+        private static SemaphoreSlim GetUserAuthLock(int userId) =>
+            _userAuthLocks.GetOrAdd(userId, _ => new SemaphoreSlim(1, 1));
+
+        public async Task RegisterAsync(RegisterDto request)
         {
             var exist = await _userRepo.GetByEmailAsync(request.Email);
 
             if (exist != null) throw new ConflictException("Email already exists");
-            
+
             var defaultRole = await _roleRepo.GetByNameRoleAsync("User");
 
             if (defaultRole == null)
                 throw new Exception("System role configuration error");
-            
+
             var user = new User
             {
                 Email = request.Email,
@@ -71,118 +87,234 @@ namespace Ecommerce.Application.Services.Implementations
 
         public async Task<AuthResponseDto> LoginAsync(LoginDto request)
         {
+            var emailKey = request.Email.Trim().ToLowerInvariant();
+            var failKey = CacheKeyGenerator.LoginFailure(emailKey);
 
-            var user = await _userRepo.GetByEmailAsync(request.Email);
+            var userForCred = await _userRepo.GetByEmailAsync(request.Email);
 
-            if (user == null || !_passwordHasher.Verify(request.Password, user.PasswordHash))
-                throw new UnauthorizedException("Invalid email or password");
-            
-
-            var userWithPermissions = await _userRepo.GetByIdWithPermissionsAsync(user.Id);
-
-            if (userWithPermissions == null)
+            if (userForCred == null ||
+                !_passwordHasher.Verify(request.Password, userForCred.PasswordHash))
             {
-                throw new NotFoundException("User not found");
+                var failCount = await _cacheService.GetAsync<int?>(failKey) ?? 0;
+                failCount++;
+                await _cacheService.SetAsync(failKey, failCount, LoginFailureWindow);
+                if (failCount > MaxLoginFailures)
+                    throw new TooManyRequestsException();
+
+                throw new UnauthorizedException("Invalid email or password");
             }
 
-            var accessToken = _jwtService.GenerateAccessToken(userWithPermissions);
-            var rawRefreshToken = _jwtService.GenerateRefreshToken();
+            await _cacheService.RemoveAsync(failKey);
 
-            var tokenHash = _jwtService.HashToken(rawRefreshToken);
+            var deviceId = _deviceService.GetDeviceId();
+            if (string.IsNullOrWhiteSpace(deviceId))
+                throw new UnauthorizedException("X-Device-Id header is required for login");
 
-            var ip = _deviceService.GetIpAddress();
-            var userAgent = _deviceService.GetUserAgent();
-            var deviceId = _deviceService.GenerateDeviceId(userAgent, ip);
-
-            var refreshToken = new RefreshToken(
-                user.Id,
-                tokenHash,
-                DateTime.UtcNow.AddDays(_jwtSettings.RefreshTokenDays),
-                ip,
-                userAgent,
-                deviceId
-            );
-
-            await _refreshTokenRepo.AddAsync(refreshToken);
-            await _refreshTokenRepo.SaveChangesAsync();
-
-            return new AuthResponseDto
+            var authLock = GetUserAuthLock(userForCred.Id);
+            await authLock.WaitAsync();
+            try
             {
-                AccessToken = accessToken,
-                RefreshToken = rawRefreshToken,
-                ExpiresIn = _jwtSettings.ExpiryMinutes * 60
-            };
+                var user = await _userRepo.GetByIdForUpdateAsync(userForCred.Id);
+                if (user == null)
+                    throw new NotFoundException("User not found");
+
+                await _refreshTokenRepo.RevokeAllForUserAsync(user.Id);
+
+                var fingerprintHash = _fingerprint.ComputeFingerprint(deviceId);
+                var sessionId = Guid.NewGuid();
+                user.SessionVersion += 1;
+                user.CurrentSessionId = sessionId;
+                user.LastLoginIpHash = _fingerprint.GetClientIpAddress();
+                user.LastDeviceId = deviceId;
+                user.LastFingerprintHash = fingerprintHash;
+
+                var familyId = Guid.NewGuid();
+                var refreshPlain = _jwtService.GenerateRefreshToken();
+                var refreshHash = _jwtService.HashToken(refreshPlain);
+                var expiry = DateTime.UtcNow.AddDays(_jwtSettings.RefreshTokenDays);
+
+                var refreshEntity = new RefreshToken(
+                    user.Id,
+                    refreshHash,
+                    expiry,
+                    deviceId,
+                    sessionId,
+                    familyId);
+
+                await _refreshTokenRepo.AddAsync(refreshEntity);
+                await _userRepo.SaveChangesAsync();
+
+                var accessToken = _jwtService.GenerateAccessToken(
+                    user,
+                    sessionId,
+                    user.SessionVersion,
+                    fingerprintHash);
+
+                await CacheSessionAsync(
+                    user.Id,
+                    sessionId,
+                    user.SessionVersion,
+                    fingerprintHash,
+                    deviceId);
+
+                return new AuthResponseDto
+                {
+                    AccessToken = accessToken,
+                    RefreshToken = refreshPlain,
+                    ExpiresIn = _jwtSettings.ExpiryMinutes * 60
+                };
+            }
+            finally
+            {
+                authLock.Release();
+            }
         }
 
         public async Task<AuthResponseDto> RefreshTokenAsync(RefreshTokenRequestDto request)
         {
             var principal = _jwtService.GetPrincipalFromExpiredToken(request.AccessToken);
 
-            var userId = principal.GetUserId();
+            if (!int.TryParse(principal.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
+                throw new UnauthorizedException("Invalid token");
 
-            if (userId <= 0) throw new UnauthorizedException("Invalid user identification");
-            var user = await _userRepo.GetByIdWithPermissionsAsync(userId);
+            var sid = principal.FindFirst("sid")?.Value;
+            var sv = principal.FindFirst("sv")?.Value;
+            var fp = principal.FindFirst("fp")?.Value;
+            var jti = principal.FindFirst(JwtRegisteredClaimNames.Jti)?.Value;
 
-            if (user == null || user.IsDeleted)
-                throw new UnauthorizedException("Invalid user");
+            if (!int.TryParse(sv, out var sessionVersionClaim))
+                throw new UnauthorizedException("Invalid token");
 
-            var tokenHash = _jwtService.HashToken(request.RefreshToken);
+            var deviceId = _deviceService.GetDeviceId();
+            var currentFingerprint = _fingerprint.ComputeFingerprint(deviceId ?? string.Empty);
 
-            var storedToken = await _refreshTokenRepo.GetByTokenHashAsync(tokenHash);
+            await _sessionValidation.EnsureAccessTokenSessionValidAsync(
+                userId,
+                sid,
+                sv,
+                fp,
+                currentFingerprint);
 
-            if (storedToken == null)
-                throw new UnauthorizedException("Invalid refresh token");
+            if (!Guid.TryParse(sid, out var sessionId))
+                throw new UnauthorizedException("Invalid token");
 
-            if (storedToken.ExpiryDate <= DateTime.UtcNow)
-                throw new UnauthorizedException("Refresh token expired");
-
-            var ip = _deviceService.GetIpAddress();
-            var userAgent = _deviceService.GetUserAgent();
-            var deviceId = _deviceService.GenerateDeviceId(userAgent, ip);
-
-            // device binding check
-            if (storedToken.DeviceId != deviceId)
+            var authLock = GetUserAuthLock(userId);
+            await authLock.WaitAsync();
+            try
             {
-                user.RevokeAllTokens();
-                await _refreshTokenRepo.SaveChangesAsync();
+                var rtHash = _jwtService.HashToken(request.RefreshToken);
+                var storedRt = await _refreshTokenRepo.GetByTokenHashAnyAsync(rtHash);
 
-                throw new UnauthorizedException("Token used from different device");
+                if (storedRt == null)
+                    throw new UnauthorizedException("Invalid refresh token");
+
+                if (storedRt.IsRevoked)
+                {
+                    await InvalidateAllUserSessionsAsync(userId);
+                    throw new UnauthorizedException("Refresh token reuse detected");
+                }
+
+                if (storedRt.UserId != userId || storedRt.SessionId != sessionId)
+                    throw new UnauthorizedException("Invalid refresh token");
+
+                if (storedRt.ExpiryDate <= DateTime.UtcNow)
+                    throw new UnauthorizedException("Refresh token expired");
+
+                if (!string.IsNullOrEmpty(jti))
+                {
+                    var remaining = _jwtService.GetAccessTokenRemainingLifetime(request.AccessToken);
+                    if (remaining.HasValue && remaining.Value > TimeSpan.Zero)
+                        await _tokenBlacklist.BlacklistAsync(_jwtService.HashToken(jti), remaining.Value);
+                }
+
+                await _cacheService.RemoveAsync(CacheKeyGenerator.AuthSession(userId, sessionVersionClaim));
+
+                await _refreshTokenRepo.RevokeByIdAsync(storedRt.Id);
+
+                var user = await _userRepo.GetByIdForUpdateAsync(userId);
+                if (user == null)
+                    throw new NotFoundException("User not found");
+
+                user.LastLoginIpHash = _fingerprint.GetClientIpAddress();
+                user.LastDeviceId = deviceId ?? string.Empty;
+                user.LastFingerprintHash = currentFingerprint;
+
+                var newRefreshPlain = _jwtService.GenerateRefreshToken();
+                var newHash = _jwtService.HashToken(newRefreshPlain);
+                var newExpiry = DateTime.UtcNow.AddDays(_jwtSettings.RefreshTokenDays);
+
+                var newRt = new RefreshToken(
+                    user.Id,
+                    newHash,
+                    newExpiry,
+                    deviceId ?? string.Empty,
+                    sessionId,
+                    storedRt.FamilyId);
+
+                await _refreshTokenRepo.AddAsync(newRt);
+                await _userRepo.SaveChangesAsync();
+
+                var accessToken = _jwtService.GenerateAccessToken(
+                    user,
+                    sessionId,
+                    user.SessionVersion,
+                    currentFingerprint);
+
+                await CacheSessionAsync(
+                    user.Id,
+                    sessionId,
+                    user.SessionVersion,
+                    currentFingerprint,
+                    deviceId ?? string.Empty);
+
+                return new AuthResponseDto
+                {
+                    AccessToken = accessToken,
+                    RefreshToken = newRefreshPlain,
+                    ExpiresIn = _jwtSettings.ExpiryMinutes * 60
+                };
+            }
+            finally
+            {
+                authLock.Release();
+            }
+        }
+
+        public async Task LogoutAsync(int userId, string accessToken)
+        {
+            if (!string.IsNullOrEmpty(accessToken))
+            {
+                try
+                {
+                    var principal = _jwtService.GetPrincipalFromExpiredToken(accessToken);
+                    var jti = principal.FindFirst(JwtRegisteredClaimNames.Jti)?.Value;
+                    if (!string.IsNullOrEmpty(jti))
+                    {
+                        var remaining = _jwtService.GetAccessTokenRemainingLifetime(accessToken);
+                        if (remaining.HasValue && remaining.Value > TimeSpan.Zero)
+                            await _tokenBlacklist.BlacklistAsync(_jwtService.HashToken(jti), remaining.Value);
+                    }
+                }
+                catch
+                {
+                    // ignore malformed token on logout
+                }
             }
 
-            // Reuse Detection
-            if (storedToken.IsRevoked)
-            {
-                user.RevokeAllTokens();
-                await _refreshTokenRepo.SaveChangesAsync();
-                throw new UnauthorizedException("Token reuse detected");
-            }
+            await _refreshTokenRepo.RevokeAllForUserAsync(userId);
 
-            // rotation
-            storedToken.Revoke();
+            var user = await _userRepo.GetByIdForUpdateAsync(userId);
+            if (user == null)
+                return;
 
-            var newAccessToken = _jwtService.GenerateAccessToken(user);
-            var newRawRefreshToken = _jwtService.GenerateRefreshToken();
+            var oldSessionVersion = user.SessionVersion;
+            user.SessionVersion += 1;
+            user.CurrentSessionId = null;
+            user.LastLoginIpHash = null;
+            user.LastDeviceId = null;
 
-            var newHash = _jwtService.HashToken(newRawRefreshToken);
-
-            var newToken = new RefreshToken(
-                user.Id,
-                newHash,
-                DateTime.UtcNow.AddDays(_jwtSettings.RefreshTokenDays),
-                ip,
-                userAgent,
-                deviceId
-            );
-
-            await _refreshTokenRepo.AddAsync(newToken);
-            await _refreshTokenRepo.SaveChangesAsync();
-
-            return new AuthResponseDto
-            {
-                AccessToken = newAccessToken,
-                RefreshToken = newRawRefreshToken,
-                ExpiresIn = _jwtSettings.ExpiryMinutes * 60
-            };
+            await _userRepo.SaveChangesAsync();
+            await _cacheService.RemoveAsync(CacheKeyGenerator.AuthSession(userId, oldSessionVersion));
         }
 
         public async Task<bool> HasPermissionAsync(int userId, string permission)
@@ -220,38 +352,44 @@ namespace Ecommerce.Application.Services.Implementations
             };
         }
 
-        public async Task LogoutAsync(int userId, string accessToken)
+        private async Task CacheSessionAsync(
+            int userId,
+            Guid sessionId,
+            int sessionVersion,
+            string fingerprintHash,
+            string deviceId)
         {
-            if (userId <= 0) throw new UnauthorizedException("Unauthorized");
+            var state = new UserSessionState
+            {
+                SessionId = sessionId,
+                SessionVersion = sessionVersion,
+                FingerprintHash = fingerprintHash,
+                DeviceId = deviceId,
+                IpHash = _fingerprint.GetClientIpAddress()
+            };
+
+            await _cacheService.SetAsync(
+                CacheKeyGenerator.AuthSession(userId, sessionVersion),
+                state,
+                TimeSpan.FromDays(_jwtSettings.RefreshTokenDays));
+        }
+
+        private async Task InvalidateAllUserSessionsAsync(int userId)
+        {
+            await _refreshTokenRepo.RevokeAllForUserAsync(userId);
 
             var user = await _userRepo.GetByIdForUpdateAsync(userId);
-            if (user == null) throw new NotFoundException("User not found");
+            if (user == null)
+                return;
 
-            user.RevokeAllTokens();
+            var oldSessionVersion = user.SessionVersion;
+            user.SessionVersion += 1;
+            user.CurrentSessionId = null;
+            user.LastLoginIpHash = null;
+            user.LastDeviceId = null;
 
             await _userRepo.SaveChangesAsync();
-            try
-            {
-                var principal = _jwtService.GetPrincipalFromExpiredToken(accessToken);
-                var expClaim = principal.FindFirst("exp")?.Value;
-
-                if (long.TryParse(expClaim, out var expUnix))
-                {
-                    var expiryDate = DateTimeOffset.FromUnixTimeSeconds(expUnix).UtcDateTime;
-                    var remainingTime = expiryDate - DateTime.UtcNow;
-
-                    if (remainingTime.TotalSeconds > 0)
-                    {
-                        // Key format: Blacklist:AccessToken:{Hash}
-                        string blacklistKey = $"Blacklist:Token:{accessToken}";
-                        await _cacheService.SetAsync(blacklistKey, "revoked", remainingTime);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning("Blacklisting failed for a token. It might be already invalid. Error: {Message}", ex.Message);
-            }
+            await _cacheService.RemoveAsync(CacheKeyGenerator.AuthSession(userId, oldSessionVersion));
         }
     }
 }

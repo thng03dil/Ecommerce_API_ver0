@@ -7,11 +7,11 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Ecommerce.API.Controllers
 {
-    public class ProductsController : BaseController
+    public class ProductController : BaseController
     {
         private readonly IProductService _service;
 
-        public ProductsController(IProductService service)
+        public ProductController(IProductService service)
         {
             _service = service; 
         }

@@ -1,4 +1,3 @@
-using Azure.Core;
 using Ecommerce.Application.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Ecommerce.Application.DTOs.Auth;

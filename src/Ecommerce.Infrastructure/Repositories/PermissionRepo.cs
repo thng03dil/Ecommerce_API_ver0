@@ -56,11 +56,6 @@ namespace Ecommerce.Infrastructure.Repositories
             return await query.AnyAsync(p => p.Entity == entity && p.Action == action);
         }
 
-        public async Task<bool> IsAssignedToAnyRoleAsync(int permissionId)
-        {
-            return await _context.RolePermissions.AnyAsync(rp => rp.PermissionId == permissionId);
-        }
-
         public async Task<bool> IsAssignedToAnyNonAdminRoleAsync(int permissionId)
         {
             return await _context.RolePermissions
@@ -93,11 +88,7 @@ namespace Ecommerce.Infrastructure.Repositories
 
             return count == ids.Count;
         }
-        public async Task<bool> IsPermissionIdExistAsync(int id) 
-        {
-            return await _context.Permissions.AnyAsync(p => p.Id == id);
-            
-        }
+
         public async Task AddAsync(Permission permission)
         {
             await _context.Permissions.AddAsync(permission);

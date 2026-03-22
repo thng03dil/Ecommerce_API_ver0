@@ -5,3 +5,5 @@
 *.suo
 *.v12
 *.v15
+*.log
+SystemLogs/

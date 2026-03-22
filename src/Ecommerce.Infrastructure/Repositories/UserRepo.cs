@@ -1,5 +1,5 @@
-using Azure.Core;
 using Ecommerce.Application.Common.Pagination;
+using Ecommerce.Domain.Common;
 using Ecommerce.Domain.Entities;
 using Ecommerce.Domain.Interfaces;
 using Ecommerce.Infrastructure.Data;
@@ -51,8 +51,24 @@ namespace Ecommerce.Infrastructure.Repositories
         public async Task<User?> GetByIdForUpdateAsync(int id)
         {
             return await _context.Users
-                .Include(u => u.RefreshTokens)
+                .Include(u => u.Role)
+                .ThenInclude(r => r.RolePermissions)
+                .ThenInclude(rp => rp.Permission)
                 .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
+        }
+
+        public async Task<UserAuthState?> GetUserAuthStateAsync(int userId)
+        {
+            return await _context.Users
+                .AsNoTracking()
+                .Where(x => x.Id == userId && !x.IsDeleted)
+                .Select(x => new UserAuthState(
+                    x.SessionVersion,
+                    x.CurrentSessionId,
+                    x.LastLoginIpHash,
+                    x.LastDeviceId,
+                    x.LastFingerprintHash))
+                .FirstOrDefaultAsync();
         }
         public async Task<User?> GetByEmailAsync(string email)
         {
@@ -63,12 +79,22 @@ namespace Ecommerce.Infrastructure.Repositories
                 .FirstOrDefaultAsync(x => x.Email == email && !x.IsDeleted);
         }
         
-        public async Task<bool> EmailExistingAsync(string email)
+        public async Task<IReadOnlyList<int>> ReassignUsersToRoleAsync(int fromRoleId, int toRoleId)
         {
-            return await _context.Users.AnyAsync(x => x.Email == email && !x.IsDeleted);
-        }
+            var users = await _context.Users
+                .Where(u => u.RoleId == fromRoleId && !u.IsDeleted)
+                .ToListAsync();
 
-        
+            var ids = users.Select(u => u.Id).ToList();
+
+            foreach (var user in users)
+            {
+                user.RoleId = toRoleId;
+                user.UpdatedAt = DateTime.UtcNow;
+            }
+
+            return ids;
+        }
 
         public async Task AddAsync(User user)
         {

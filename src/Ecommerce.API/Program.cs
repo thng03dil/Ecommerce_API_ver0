@@ -1,6 +1,7 @@
 using Ecommerce.API.Middleware;
 using Ecommerce.Application.Authorization;
 using Ecommerce.Application.Common.Responses;
+using Ecommerce.Application.Exceptions;
 using Ecommerce.Application.Services.Implementations;
 using Ecommerce.Application.Services.Interfaces;
 using Ecommerce.Domain.Common.Settings;
@@ -38,11 +39,6 @@ builder.Host.UseSerilog();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-builder.Services.AddStackExchangeRedisCache(options =>
-{
-    options.Configuration = "localhost:6379";
-    options.InstanceName = "Ecommerce:";
-});
 
 // Redis Configuration
 var redisConn = builder.Configuration["Redis:ConnectionString"];
@@ -64,6 +60,12 @@ if (!string.IsNullOrEmpty(redisConn))
         options.Configuration = redisConn;
         options.InstanceName = instanceName;
     });
+}else
+{
+    // Fallback : use memory cache if redis is not configured
+    builder.Services.AddDistributedMemoryCache();
+    
+    Log.Warning("Redis ConnectionString is missing. Using MemoryCache instead.");
 }
 
 builder.Services.AddSingleton<ICacheService, RedisCacheService>();
@@ -75,6 +77,7 @@ builder.Services.AddScoped<IUserRepo, UserRepo>();
 builder.Services.AddScoped<IRefreshTokenRepo , RefreshTokenRepo>();
 builder.Services.AddScoped<IRoleRepo, RoleRepo>();
 builder.Services.AddScoped<IPermissionRepo, PermissionRepo>();
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
 // Register Service
 builder.Services.AddScoped<IProductService, ProductService>();
@@ -86,8 +89,16 @@ builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IRoleService, RoleService>();
 builder.Services.AddScoped<IPermissionService, PermissionService>();
+builder.Services.Configure<AuthSecuritySettings>(
+    builder.Configuration.GetSection("AuthSecurity"));
 
+var fingerprintSecret = builder.Configuration["AuthSecurity:FingerprintSecret"];
+if (string.IsNullOrWhiteSpace(fingerprintSecret))
+    throw new InvalidOperationException("AuthSecurity:FingerprintSecret is required. Set via User Secrets: dotnet user-secrets set \"AuthSecurity:FingerprintSecret\" \"your-secret-32-chars-min\" --project src/Ecommerce.API");
 
+builder.Services.AddScoped<ISecurityFingerprintHelper, SecurityFingerprintHelper>();
+builder.Services.AddScoped<ISessionValidationService, SessionValidationService>();
+builder.Services.AddScoped<ITokenBlacklistService, TokenBlacklistService>();
 
 builder.Services.AddControllers();
 
@@ -106,7 +117,7 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
                 messages = x.Value!.Errors.Select(e => e.ErrorMessage)
             });
 
-        var response = new ErrorResponse
+        var response = new ErrorResponseDto
         {
             StatusCode = StatusCodes.Status400BadRequest,
             Success = false,
@@ -128,7 +139,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.Configure<JwtSettings>(
     builder.Configuration.GetSection("Jwt"));
 
-//configure JWT in swagger
+//configure JWT in swagger and swagger global header.
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "Ecommerce API", Version = "v1" });
@@ -140,8 +151,8 @@ builder.Services.AddSwaggerGen(c =>
         var order = controllerName switch
         {
             "Auth" => "1",
-            "Categories" => "2",
-            "Products" => "3",
+            "Category" => "2",
+            "Product" => "3",
             "User" => "4",
             "Role" => "5",
             "Permission" => "6",
@@ -153,27 +164,38 @@ builder.Services.AddSwaggerGen(c =>
 
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
         {
-            Description = "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\"",
+            Description = "JWT Authorization header. Example: \"Authorization: Bearer {token}\"",
             Name = "Authorization",
             In = ParameterLocation.Header,
             Type = SecuritySchemeType.Http,
             Scheme = "bearer"
         });
 
-        c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    c.AddSecurityDefinition("DeviceId", new OpenApiSecurityScheme
         {
-            {
-                new OpenApiSecurityScheme
-                {
-                    Reference = new OpenApiReference
-                    {
-                        Type = ReferenceType.SecurityScheme,
-                        Id = "Bearer"
-                    }
-                },
-                new string[] {}
-            }
+            Description = "Mandatory device identifier for auth. Example: X-Device-Id: swagger-device",
+            Name = "X-Device-Id",
+            In = ParameterLocation.Header,
+            Type = SecuritySchemeType.ApiKey
         });
+
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
+            },
+            Array.Empty<string>()
+        },
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "DeviceId" }
+            },
+            Array.Empty<string>()
+        }
+    });
 });
 
 //configure JWT authentication
@@ -202,48 +224,47 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         ValidateIssuerSigningKey = true,
         ValidateLifetime = true,
         ClockSkew = TimeSpan.Zero,
+
         ValidIssuer = builder.Configuration["Jwt:Issuer"],
         ValidAudience = builder.Configuration["Jwt:Audience"],
         IssuerSigningKey = new SymmetricSecurityKey(key)
     };
     options.Events = new JwtBearerEvents
     {
+        OnAuthenticationFailed = context =>
+        {
+            var logger = context.HttpContext.RequestServices
+                .GetRequiredService<ILogger<Program>>();
+
+            logger.LogWarning(context.Exception, "JWT authentication failed");
+
+            return Task.CompletedTask;
+        },
         OnChallenge = async context =>
         {
             context.HandleResponse();
 
-            context.Response.StatusCode = 401;
-            context.Response.ContentType = "application/json";
+            if (context.AuthenticateFailure is SecurityTokenExpiredException)
+            
+                throw new UnauthorizedException("Token has expired");
+            
 
-            var response = new ErrorResponse
+            if (context.AuthenticateFailure is SecurityTokenInvalidSignatureException)
             {
-                StatusCode = 401,
-                Success = false,
-                ErrorCode = "UNAUTHORIZED",
-                Message = "Authentication failed: You are not authorized to access this resource.",
-                Path = context.Request.Path,
-                TraceId = context.HttpContext.TraceIdentifier,
-                Timestamp = DateTime.UtcNow
-            };
+                throw new UnauthorizedException("Invalid token signature");
+            }
 
-            await context.Response.WriteAsync(JsonSerializer.Serialize(response));
+            if (context.AuthenticateFailure is SecurityTokenException)
+            {
+                throw new UnauthorizedException("Invalid token");
+            }
+
+            throw new UnauthorizedException("Authentication failed : You are not authorized to access this resource.");
         },
         OnForbidden = async context =>
         {
-            context.Response.StatusCode = 403;
-            context.Response.ContentType = "application/json";
-            var response = new ErrorResponse
-            {
-                StatusCode = 403,
-                Success = false,
-                ErrorCode = "FORBIDDEN",
-                Message = "Access denied: You do not have permission to perform this action.",
-                Path = context.Request.Path,
-                TraceId = context.HttpContext.TraceIdentifier,
-                Timestamp = DateTime.UtcNow
-            };
-
-            await context.Response.WriteAsync(JsonSerializer.Serialize(response));
+            throw new ForbiddenException("Access denied: You do not have permission"); 
+                
         }
     };
 });
@@ -263,8 +284,6 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseMiddleware<TokenBlacklistMiddleware>();
-
 app.UseSerilogRequestLogging(options =>
 {
     options.MessageTemplate =
@@ -272,7 +291,8 @@ app.UseSerilogRequestLogging(options =>
 });
 
 app.UseHttpsRedirection();
-app.UseAuthentication();  
+app.UseAuthentication();
+app.UseMiddleware<SessionValidationMiddleware>();
 app.UseAuthorization();
 
 

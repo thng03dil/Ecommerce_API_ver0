@@ -1,4 +1,4 @@
-﻿using Ecommerce.Domain.Entities;
+using Ecommerce.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -40,12 +40,16 @@ namespace Ecommerce.Infrastructure.Data.Configurations
 
             builder.Property(x => x.UpdatedAt)
                 .IsRequired(false);
+            builder.Property(r => r.IsSystem)
+                .IsRequired();
+
             builder.HasData(
             new Role
             {
                 Id = 1,
                 Name = "Admin",
                 Description = "System administrator with full access",
+                IsSystem = true,
                 CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
             },
             new Role
@@ -53,6 +57,7 @@ namespace Ecommerce.Infrastructure.Data.Configurations
                 Id = 2,
                 Name = "User",
                 Description = "Registered user with limited access",
+                IsSystem = true,
                 CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
             }
         );

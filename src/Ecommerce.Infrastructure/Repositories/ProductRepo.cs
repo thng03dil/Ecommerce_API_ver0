@@ -1,4 +1,4 @@
-﻿using Ecommerce.Infrastructure.Data;
+using Ecommerce.Infrastructure.Data;
 using Ecommerce.Application.Common.Pagination;
 using Ecommerce.Domain.Common.Filters;
 using Ecommerce.Application.Extensions;
@@ -62,14 +62,6 @@ namespace Ecommerce.Infrastructure.Repositories
                 .ToListAsync();
 
             return (items, total);
-        }
-        public async Task<int> CountAsync()
-        {
-            var query = _context.Products
-                        .AsNoTracking()
-                        .Where(x => !x.IsDeleted);
-
-            return await query.CountAsync();
         }
 
         public async Task<bool> CategoryExistsAsync(int categoryId)

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -9,6 +9,9 @@ namespace Ecommerce.Domain.Entities
 
         public string Name { get; set; } = null!;
         public string? Description { get; set; }
+
+        /// <summary>Vai trò hệ thống (Admin, User, …) — không cho phép xóa.</summary>
+        public bool IsSystem { get; set; }
 
         public ICollection<RolePermission> RolePermissions { get; set; } = new List<RolePermission>();
 

@@ -32,7 +32,7 @@ namespace Ecommerce.API.Controllers
             });
         }
 
-        protected IActionResult ErrorResponse(string message, int statusCode = 400)
+        protected IActionResult ErrorResponseDto(string message, int statusCode = 400)
         {
             return StatusCode(statusCode, new
             {
