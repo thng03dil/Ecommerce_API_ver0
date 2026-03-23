@@ -38,9 +38,9 @@ namespace Ecommerce.Infrastructure.SecurityHelpers
             return ctx.Connection.RemoteIpAddress?.ToString() ?? string.Empty;
         }
 
-        /// <summary>
+        
         /// Fingerprint = HMAC-SHA256(secret, deviceId + "|" + ipAddress).
-        /// </summary>
+        
         public string ComputeFingerprint(string deviceId)
         {
             if (string.IsNullOrWhiteSpace(_settings.FingerprintSecret))

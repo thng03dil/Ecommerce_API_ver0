@@ -72,7 +72,7 @@ namespace Ecommerce.Application.Services.Implementations
             var defaultRole = await _roleRepo.GetByNameRoleAsync("User");
 
             if (defaultRole == null)
-                throw new Exception("System role configuration error");
+                throw new BusinessException("System role configuration error");
 
             var user = new User
             {
@@ -87,7 +87,7 @@ namespace Ecommerce.Application.Services.Implementations
 
         public async Task<AuthResponseDto> LoginAsync(LoginDto request)
         {
-            var emailKey = request.Email.Trim().ToLowerInvariant();
+            var emailKey = request.Email.Trim().ToLowerInvariant();// dựa trên nguyên tắc ngôn ngữ trung lập (văn hóa bất biến - Invariant Culture)
             var failKey = CacheKeyGenerator.LoginFailure(emailKey);
 
             var userForCred = await _userRepo.GetByEmailAsync(request.Email);
@@ -122,47 +122,20 @@ namespace Ecommerce.Application.Services.Implementations
 
                 var fingerprintHash = _fingerprint.ComputeFingerprint(deviceId);
                 var sessionId = Guid.NewGuid();
-                user.SessionVersion += 1;
+                user.SessionVersion += 1; 
                 user.CurrentSessionId = sessionId;
                 user.LastLoginIpHash = _fingerprint.GetClientIpAddress();
                 user.LastDeviceId = deviceId;
                 user.LastFingerprintHash = fingerprintHash;
 
                 var familyId = Guid.NewGuid();
-                var refreshPlain = _jwtService.GenerateRefreshToken();
-                var refreshHash = _jwtService.HashToken(refreshPlain);
-                var expiry = DateTime.UtcNow.AddDays(_jwtSettings.RefreshTokenDays);
-
-                var refreshEntity = new RefreshToken(
-                    user.Id,
-                    refreshHash,
-                    expiry,
-                    deviceId,
-                    sessionId,
-                    familyId);
-
-                await _refreshTokenRepo.AddAsync(refreshEntity);
-                await _userRepo.SaveChangesAsync();
-
-                var accessToken = _jwtService.GenerateAccessToken(
+                return await IssueAuthResponseAsync(
                     user,
                     sessionId,
-                    user.SessionVersion,
-                    fingerprintHash);
-
-                await CacheSessionAsync(
-                    user.Id,
-                    sessionId,
-                    user.SessionVersion,
-                    fingerprintHash,
-                    deviceId);
-
-                return new AuthResponseDto
-                {
-                    AccessToken = accessToken,
-                    RefreshToken = refreshPlain,
-                    ExpiresIn = _jwtSettings.ExpiryMinutes * 60
-                };
+                    familyId,
+                    deviceId,
+                    fingerprintHash
+                    );
             }
             finally
             {
@@ -186,7 +159,7 @@ namespace Ecommerce.Application.Services.Implementations
                 throw new UnauthorizedException("Invalid token");
 
             var deviceId = _deviceService.GetDeviceId();
-            var currentFingerprint = _fingerprint.ComputeFingerprint(deviceId ?? string.Empty);
+            var currentFingerprint = _fingerprint.ComputeFingerprint(deviceId ?? string.Empty); // lấy fingerprinthash hiện tại của request
 
             await _sessionValidation.EnsureAccessTokenSessionValidAsync(
                 userId,
@@ -208,18 +181,20 @@ namespace Ecommerce.Application.Services.Implementations
                 if (storedRt == null)
                     throw new UnauthorizedException("Invalid refresh token");
 
+                // check token reuse detected
                 if (storedRt.IsRevoked)
                 {
                     await InvalidateAllUserSessionsAsync(userId);
                     throw new UnauthorizedException("Refresh token reuse detected");
                 }
-
+                // check invalid info from token
                 if (storedRt.UserId != userId || storedRt.SessionId != sessionId)
                     throw new UnauthorizedException("Invalid refresh token");
-
+                //check expired refresh token
                 if (storedRt.ExpiryDate <= DateTime.UtcNow)
                     throw new UnauthorizedException("Refresh token expired");
-
+                // kiểm tra jti của access token có tồn tại không,
+                // nếu có thì blacklist để phòng trường hợp access token bị đánh cắp và sử dụng lại
                 if (!string.IsNullOrEmpty(jti))
                 {
                     var remaining = _jwtService.GetAccessTokenRemainingLifetime(request.AccessToken);
@@ -239,40 +214,13 @@ namespace Ecommerce.Application.Services.Implementations
                 user.LastDeviceId = deviceId ?? string.Empty;
                 user.LastFingerprintHash = currentFingerprint;
 
-                var newRefreshPlain = _jwtService.GenerateRefreshToken();
-                var newHash = _jwtService.HashToken(newRefreshPlain);
-                var newExpiry = DateTime.UtcNow.AddDays(_jwtSettings.RefreshTokenDays);
-
-                var newRt = new RefreshToken(
-                    user.Id,
-                    newHash,
-                    newExpiry,
-                    deviceId ?? string.Empty,
-                    sessionId,
-                    storedRt.FamilyId);
-
-                await _refreshTokenRepo.AddAsync(newRt);
-                await _userRepo.SaveChangesAsync();
-
-                var accessToken = _jwtService.GenerateAccessToken(
+                return await IssueAuthResponseAsync(
                     user,
                     sessionId,
-                    user.SessionVersion,
-                    currentFingerprint);
-
-                await CacheSessionAsync(
-                    user.Id,
-                    sessionId,
-                    user.SessionVersion,
-                    currentFingerprint,
-                    deviceId ?? string.Empty);
-
-                return new AuthResponseDto
-                {
-                    AccessToken = accessToken,
-                    RefreshToken = newRefreshPlain,
-                    ExpiresIn = _jwtSettings.ExpiryMinutes * 60
-                };
+                    storedRt.FamilyId,
+                    deviceId ?? string.Empty,
+                    currentFingerprint
+                    );
             }
             finally
             {
@@ -373,7 +321,9 @@ namespace Ecommerce.Application.Services.Implementations
                 state,
                 TimeSpan.FromDays(_jwtSettings.RefreshTokenDays));
         }
-
+        //hủy toàn bộ token đang còn hiệu lực của user và tăng session version
+        //để tất cả access token cũ đều bị vô hiệu hóa,
+        //đồng thời xóa cache session nếu có
         private async Task InvalidateAllUserSessionsAsync(int userId)
         {
             await _refreshTokenRepo.RevokeAllForUserAsync(userId);
@@ -390,6 +340,54 @@ namespace Ecommerce.Application.Services.Implementations
 
             await _userRepo.SaveChangesAsync();
             await _cacheService.RemoveAsync(CacheKeyGenerator.AuthSession(userId, oldSessionVersion));
+        }
+        // tạo RefreshToken, lưu DB, lưu Cache và trả về DTO
+        private async Task<AuthResponseDto> IssueAuthResponseAsync(
+                     User user,
+                     Guid sessionId,
+                     Guid familyId,
+                     string deviceId,
+                     string fingerprintHash,
+                     CancellationToken ct = default)
+        {
+            // Tạo new RT 
+            var refreshPlain = _jwtService.GenerateRefreshToken();
+            var refreshHash = _jwtService.HashToken(refreshPlain);
+            var expiry = DateTime.UtcNow.AddDays(_jwtSettings.RefreshTokenDays);
+
+            var refreshEntity = new RefreshToken(
+                user.Id,
+                refreshHash,
+                expiry,
+                deviceId,
+                sessionId,
+                familyId);
+
+            // saveDB
+            await _refreshTokenRepo.AddAsync(refreshEntity);
+            await _userRepo.SaveChangesAsync();
+
+            // tạo new AT
+            var accessToken = _jwtService.GenerateAccessToken(
+                user,
+                sessionId,
+                user.SessionVersion,
+                fingerprintHash);
+
+            // update cache session
+            await CacheSessionAsync(
+                user.Id,
+                sessionId,
+                user.SessionVersion,
+                fingerprintHash,
+                deviceId);
+
+            return new AuthResponseDto
+            {
+                AccessToken = accessToken,
+                RefreshToken = refreshPlain,
+                ExpiresIn = _jwtSettings.ExpiryMinutes * 60
+            };
         }
     }
 }

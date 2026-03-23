@@ -37,6 +37,7 @@ namespace Ecommerce.Application.Services.Implementations
                 throw new UnauthorizedException("Invalid token session");
             }
 
+            //check if the fingerprint from the login token matches the current fingerprint
             if (currentFingerprint != fpClaim)
                 throw new UnauthorizedException("Invalid session (fingerprint mismatch)");
 

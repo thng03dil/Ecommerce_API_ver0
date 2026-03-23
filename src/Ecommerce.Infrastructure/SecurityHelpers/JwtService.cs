@@ -39,14 +39,16 @@ namespace Ecommerce.Infrastructure.SecurityHelpers
 
             var claims = new List<Claim>
             {
+                // for  JWT standard claims
                 new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),//jwtid
+                // for .NET identity
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new Claim(ClaimTypes.Email, user.Email),
                 new Claim(ClaimTypes.Role, user.Role.Name),
-                new Claim("sid", sessionId.ToString()),
-                new Claim("sv", sessionVersion.ToString()),
-                new Claim("fp", fingerprint ?? string.Empty),
+                new Claim("sid", sessionId.ToString()), // sesiogn id
+                new Claim("sv", sessionVersion.ToString()), //vesion session
+                new Claim("fp", fingerprint ?? string.Empty),  // fingerprint hash from clientIP + deviceID
             };
 
             if (user.Role?.RolePermissions != null)
@@ -71,7 +73,7 @@ namespace Ecommerce.Infrastructure.SecurityHelpers
                 audience: _jwtSettings.Audience,
                 claims: claims,
                 expires: DateTime.UtcNow.AddMinutes(_jwtSettings.ExpiryMinutes),
-                signingCredentials: credentials
+                signingCredentials: credentials // đóng dấu bảo mật
             );
 
             return new JwtSecurityTokenHandler().WriteToken(token);
@@ -81,8 +83,8 @@ namespace Ecommerce.Infrastructure.SecurityHelpers
         {
             var randomBytes = new byte[32];
 
-            using var rng = RandomNumberGenerator.Create();
-            rng.GetBytes(randomBytes);
+            using var rng = RandomNumberGenerator.Create(); //Cryptographically Acceptable
+            rng.GetBytes(randomBytes); 
 
             return Convert.ToBase64String(randomBytes)
                             .Replace("+", "")
@@ -90,6 +92,7 @@ namespace Ecommerce.Infrastructure.SecurityHelpers
                             .Replace("=", "");
         }
 
+        // đọc info user từ token đã hết hạn (để cấp lại access token mới khi refresh token hợp lệ)
         public ClaimsPrincipal GetPrincipalFromExpiredToken(string token)
         {
             var key = new SymmetricSecurityKey(_keyBytes);
