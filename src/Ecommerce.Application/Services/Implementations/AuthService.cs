@@ -72,7 +72,7 @@ namespace Ecommerce.Application.Services.Implementations
             var defaultRole = await _roleRepo.GetByNameRoleAsync("User");
 
             if (defaultRole == null)
-                throw new BusinessException("System role configuration error");
+                throw new Exception("System role configuration error: default 'User' role is missing. Check database seed.");
 
             var user = new User
             {
@@ -249,20 +249,29 @@ namespace Ecommerce.Application.Services.Implementations
                 }
             }
 
-            await _refreshTokenRepo.RevokeAllForUserAsync(userId);
+            var authLock = GetUserAuthLock(userId);
+            await authLock.WaitAsync();
+            try
+            {
+                await _refreshTokenRepo.RevokeAllForUserAsync(userId);
 
-            var user = await _userRepo.GetByIdForUpdateAsync(userId);
-            if (user == null)
-                return;
+                var user = await _userRepo.GetByIdForUpdateAsync(userId);
+                if (user == null)
+                    return;
 
-            var oldSessionVersion = user.SessionVersion;
-            user.SessionVersion += 1;
-            user.CurrentSessionId = null;
-            user.LastLoginIpHash = null;
-            user.LastDeviceId = null;
+                var oldSessionVersion = user.SessionVersion;
+                user.SessionVersion += 1;
+                user.CurrentSessionId = null;
+                user.LastLoginIpHash = null;
+                user.LastDeviceId = null;
 
-            await _userRepo.SaveChangesAsync();
-            await _cacheService.RemoveAsync(CacheKeyGenerator.AuthSession(userId, oldSessionVersion));
+                await _userRepo.SaveChangesAsync();
+                await _cacheService.RemoveAsync(CacheKeyGenerator.AuthSession(userId, oldSessionVersion));
+            }
+            finally
+            {
+                authLock.Release();
+            }
         }
 
         public async Task<bool> HasPermissionAsync(int userId, string permission)
