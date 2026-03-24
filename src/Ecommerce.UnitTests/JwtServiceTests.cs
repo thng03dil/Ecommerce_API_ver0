@@ -4,6 +4,7 @@ using Ecommerce.Domain.Entities;
 using Ecommerce.Infrastructure.SecurityHelpers;
 using Ecommerce.UnitTests.Helpers;
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.IdentityModel.Tokens;
 using Xunit;
 
@@ -25,7 +26,7 @@ public class JwtServiceTests
         var bad = TestDataMother.CreateJwtSettings(key: "   ");
 
         // Act
-        var act = () => new JwtService(TestDataMother.CreateJwtOptions(bad));
+        var act = () => new JwtService(TestDataMother.CreateJwtOptions(bad), NullLogger<JwtService>.Instance);
 
         // Assert
         act.Should().Throw<Exception>().WithMessage("*JWT Key is missing*");
@@ -38,7 +39,7 @@ public class JwtServiceTests
         var bad = TestDataMother.CreateJwtSettings(key: "1234567890123456789012345678901"); // 31
 
         // Act
-        var act = () => new JwtService(TestDataMother.CreateJwtOptions(bad));
+        var act = () => new JwtService(TestDataMother.CreateJwtOptions(bad), NullLogger<JwtService>.Instance);
 
         // Assert
         act.Should().Throw<Exception>().WithMessage("*at least 32*");
@@ -48,7 +49,7 @@ public class JwtServiceTests
     public void GenerateAccessToken_RoleNull_ShouldThrowInvalidOperationException()
     {
         // Arrange
-        var sut = new JwtService(TestDataMother.CreateJwtOptions(_settings));
+        var sut = new JwtService(TestDataMother.CreateJwtOptions(_settings), NullLogger<JwtService>.Instance);
         var user = new User { Id = 1, Email = "a@b.com", RoleId = 1, Role = null! };
 
         // Act
@@ -62,7 +63,7 @@ public class JwtServiceTests
     public void GenerateAccessToken_ValidUser_ShouldReturnParsableJwt()
     {
         // Arrange
-        var sut = new JwtService(TestDataMother.CreateJwtOptions(_settings));
+        var sut = new JwtService(TestDataMother.CreateJwtOptions(_settings), NullLogger<JwtService>.Instance);
         var perm = TestDataMother.CreatePermission("products.read");
         var role = TestDataMother.CreateRole("Admin", 2, new[] { perm });
         var user = TestDataMother.CreateUser(5, roleId: 2, role: role);
@@ -87,7 +88,7 @@ public class JwtServiceTests
     public void GenerateRefreshToken_ShouldReturnNonEmptyString()
     {
         // Arrange
-        var sut = new JwtService(TestDataMother.CreateJwtOptions(_settings));
+        var sut = new JwtService(TestDataMother.CreateJwtOptions(_settings), NullLogger<JwtService>.Instance);
 
         // Act
         var rt = sut.GenerateRefreshToken();
@@ -100,7 +101,7 @@ public class JwtServiceTests
     public void GetPrincipalFromExpiredToken_ValidSignedToken_ShouldReturnClaims()
     {
         // Arrange
-        var sut = new JwtService(TestDataMother.CreateJwtOptions(_settings));
+        var sut = new JwtService(TestDataMother.CreateJwtOptions(_settings), NullLogger<JwtService>.Instance);
         var role = TestDataMother.CreateRole();
         var user = TestDataMother.CreateUser(3, roleId: role.Id, role: role);
         var sid = Guid.NewGuid();
@@ -118,7 +119,7 @@ public class JwtServiceTests
     public void GetPrincipalFromExpiredToken_MalformedToken_ShouldThrow()
     {
         // Arrange
-        var sut = new JwtService(TestDataMother.CreateJwtOptions(_settings));
+        var sut = new JwtService(TestDataMother.CreateJwtOptions(_settings), NullLogger<JwtService>.Instance);
 
         // Act
         var act = () => sut.GetPrincipalFromExpiredToken("not-a-valid-jwt");
@@ -133,7 +134,7 @@ public class JwtServiceTests
     public void HashToken_NullOrEmpty_ShouldReturnEmpty(string? token)
     {
         // Arrange
-        var sut = new JwtService(TestDataMother.CreateJwtOptions(_settings));
+        var sut = new JwtService(TestDataMother.CreateJwtOptions(_settings), NullLogger<JwtService>.Instance);
 
         // Act
         var hash = sut.HashToken(token!);
@@ -146,7 +147,7 @@ public class JwtServiceTests
     public void GetAccessTokenRemainingLifetime_InvalidToken_ShouldReturnNull()
     {
         // Arrange
-        var sut = new JwtService(TestDataMother.CreateJwtOptions(_settings));
+        var sut = new JwtService(TestDataMother.CreateJwtOptions(_settings), NullLogger<JwtService>.Instance);
 
         // Act
         var rem = sut.GetAccessTokenRemainingLifetime("%%%");

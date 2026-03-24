@@ -159,6 +159,7 @@ public class ProductServiceTests
     public async Task CreateAsync_WhenValid_ShouldPersistLoadCategoryAndBumpProductAndCategoryVersions()
     {
         _productRepo.Setup(x => x.CategoryExistsAsync(1)).ReturnsAsync(true);
+        _productRepo.Setup(x => x.ExistsByNameAsync(It.IsAny<string>(), It.IsAny<int?>())).ReturnsAsync(false);
         _productRepo
             .Setup(x => x.LoadCategoryAsync(It.IsAny<Product>()))
             .Callback<Product>(p => p.Category = new Category { Id = 1, Name = "Electronics" })
@@ -175,6 +176,19 @@ public class ProductServiceTests
         _productRepo.Verify(x => x.LoadCategoryAsync(It.IsAny<Product>()), Times.Once);
         _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.ProductVersionKey()), Times.Once);
         _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.CategoryVersionKey()), Times.Once);
+    }
+
+    [Fact]
+    public async Task CreateAsync_WhenDuplicateName_ShouldThrowBusinessException()
+    {
+        _productRepo.Setup(x => x.CategoryExistsAsync(1)).ReturnsAsync(true);
+        _productRepo.Setup(x => x.ExistsByNameAsync("New", It.IsAny<int?>())).ReturnsAsync(true);
+        var dto = TestDataMother.CreateProductCreateDto(1);
+
+        var act = () => _sut.CreateAsync(dto);
+
+        (await act.Should().ThrowAsync<BusinessException>()).Which.ErrorCode.Should()
+            .Be("A product with this name already exists.");
     }
 
     #endregion
@@ -211,9 +225,7 @@ public class ProductServiceTests
         var product = TestDataMother.CreateProduct(12, 1);
         _productRepo.Setup(x => x.GetByIdAsync(12)).ReturnsAsync(product);
         _productRepo.Setup(x => x.CategoryExistsAsync(1)).ReturnsAsync(true);
-        _productRepo
-            .Setup(x => x.LoadCategoryAsync(It.IsAny<Product>()))
-            .Returns(Task.CompletedTask);
+        _productRepo.Setup(x => x.ExistsByNameAsync(It.IsAny<string>(), 12)).ReturnsAsync(false);
         var dto = TestDataMother.CreateProductUpdateDto(12, 1);
 
         var result = await _sut.UpdateAsync(12, dto);
@@ -223,6 +235,21 @@ public class ProductServiceTests
         _cacheService.Verify(x => x.RemoveAsync(CacheKeyGenerator.Product(12)), Times.Once);
         _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.ProductVersionKey()), Times.Once);
         _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.CategoryVersionKey()), Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_WhenDuplicateName_ShouldThrowBusinessException()
+    {
+        var product = TestDataMother.CreateProduct(12, 1, "Old");
+        _productRepo.Setup(x => x.GetByIdAsync(12)).ReturnsAsync(product);
+        _productRepo.Setup(x => x.CategoryExistsAsync(1)).ReturnsAsync(true);
+        _productRepo.Setup(x => x.ExistsByNameAsync("Upd", 12)).ReturnsAsync(true);
+        var dto = TestDataMother.CreateProductUpdateDto(12, 1);
+
+        var act = () => _sut.UpdateAsync(12, dto);
+
+        (await act.Should().ThrowAsync<BusinessException>()).Which.ErrorCode.Should()
+            .Be("A product with this name already exists.");
     }
 
     #endregion

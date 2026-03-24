@@ -6,4 +6,4 @@
 *.v12
 *.v15
 *.log
-SystemLogs/
+logs/

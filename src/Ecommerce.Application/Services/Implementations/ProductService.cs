@@ -103,14 +103,19 @@ namespace Ecommerce.Application.Services.Implementations
             await _writeLock.WaitAsync();
             try
             {
+
                 var categoryExist = await _productRepo.CategoryExistsAsync(dto.CategoryId);
 
             if (!categoryExist) throw new NotFoundException("Category not found");
 
+            var name = dto.Name?.Trim() ?? string.Empty;
+            if (await _productRepo.ExistsByNameAsync(name))
+                throw new BusinessException("A product with this name already exists.");
+
             var product = new Product
             {
                 CategoryId = dto.CategoryId,
-                Name = dto.Name?.Trim() ?? string.Empty,
+                Name = name,
                 Price = dto.Price,
                 Description = dto.Description?.Trim() ?? string.Empty,
                 Stock = dto.Stock,
@@ -158,7 +163,11 @@ namespace Ecommerce.Application.Services.Implementations
                     product.CategoryId = dto.CategoryId;
                 }
 
-                product.Name = dto.Name;
+                var newName = dto.Name?.Trim() ?? string.Empty;
+                if (await _productRepo.ExistsByNameAsync(newName, id))
+                    throw new BusinessException("A product with this name already exists.");
+
+                product.Name = newName;
                 product.Price = dto.Price;
                 product.Description = dto.Description;
                 product.Stock = dto.Stock;
@@ -167,13 +176,12 @@ namespace Ecommerce.Application.Services.Implementations
 
                 await _productRepo.UpdateAsync(product);
 
-                await _productRepo.LoadCategoryAsync(product);
-
                 await _cacheService.RemoveAsync(CacheKeyGenerator.Product(id));
                 await _cacheService.IncrementAsync(CacheKeyGenerator.ProductVersionKey());
                 await _cacheService.IncrementAsync(CacheKeyGenerator.CategoryVersionKey());
 
-                var item = MapToResponseDto(product);
+                var updatedProduct = await _productRepo.GetByIdAsync(id);
+                var item = MapToResponseDto(updatedProduct!);
                 return ApiResponse<ProductResponseDto>.SuccessResponse(
                           item,
                           "Update data successfully"

@@ -132,7 +132,7 @@ You are a senior .NET backend engineer. Follow these rules for this repository. 
 
 - **Permissions:** `[entity].[action]` in lowercase, e.g. `user.read`, `product.delete` — must match seeded permission names and `[Permission("...")]` on controllers.
 
-- **Logs:** Do **not** commit contents of **`Ecommerce.API/SystemLogs/`** or arbitrary **`.log`** files; keep log output local or in deployment storage only.
+- **Logs:** Do **not** commit contents of **`Ecommerce.API/logs/`** or arbitrary **`.log`** files; keep log output local or in deployment storage only.
 
 ---
 

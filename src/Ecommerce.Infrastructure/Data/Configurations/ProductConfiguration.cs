@@ -45,6 +45,12 @@ namespace Ecommerce.Infrastructure.Data.Configurations
             builder.HasOne(x => x.Category)
                 .WithMany(x => x.Products)
                 .HasForeignKey(x => x.CategoryId);
+
+            // Chỉ áp dụng cho bản ghi chưa xóa mềm — tránh trùng tên khi có nhiều request/ instance API.
+            builder.HasIndex(x => x.Name)
+                .IsUnique()
+                .HasFilter("[IsDeleted] = 0");
+
             builder.HasQueryFilter(p => !p.IsDeleted);
 
         }

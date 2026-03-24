@@ -16,5 +16,8 @@ namespace Ecommerce.Domain.Entities
         public int CategoryId { get; set; }
 
         public Category? Category { get; set; }
+
+        [Timestamp] // Chống ghi đè dữ liệu (Optimistic Concurrency)
+        public byte[] RowVersion { get; set; } = Array.Empty<byte>();
     }
 }

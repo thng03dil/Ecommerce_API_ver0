@@ -70,6 +70,18 @@ namespace Ecommerce.Infrastructure.Repositories
                 .AnyAsync(c => c.Id == categoryId && !c.IsDeleted);
         }
 
+        public async Task<bool> ExistsByNameAsync(string name, int? excludeProductId = null)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+                return false;
+
+            var trimmed = name.Trim();
+            return await _context.Products
+                .AnyAsync(p =>
+                    p.Name.ToLower() == trimmed.ToLower() &&
+                    (!excludeProductId.HasValue || p.Id != excludeProductId.Value));
+        }
+
         public async Task AddAsync(Product product)
         {
             await _context.Products.AddAsync(product);
@@ -93,8 +105,9 @@ namespace Ecommerce.Infrastructure.Repositories
         public async Task UpdateAsync(Product product)
         {
 
-           _context.Products.Update(product);
+            _context.Entry(product).State = EntityState.Modified;
             await _context.SaveChangesAsync();
+            await _context.Entry(product).Reference(p => p.Category).LoadAsync();
         }
 
         public async Task SaveChangesAsync()

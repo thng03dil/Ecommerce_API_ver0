@@ -8,6 +8,9 @@ namespace Ecommerce.Domain.Interfaces
     {
         Task<bool> CategoryExistsAsync(int categoryId);
 
+        /// <summary>Kiểm tra đã có sản phẩm (chưa xóa mềm) cùng tên — so khớp không phân biệt hoa thường.</summary>
+        Task<bool> ExistsByNameAsync(string name, int? excludeProductId = null);
+
         Task LoadCategoryAsync(Product product); 
 
         Task AddAsync(Product product);

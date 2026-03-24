@@ -38,7 +38,22 @@ namespace Ecommerce.Infrastructure.SecurityHelpers
             return ctx.Connection.RemoteIpAddress?.ToString() ?? string.Empty;
         }
 
-        
+        private const int MaxUserAgentLength = 500;
+
+        public string? GetUserAgent()
+        {
+            var ctx = _httpContextAccessor.HttpContext;
+            if (ctx == null)
+                return null;
+
+            var ua = ctx.Request.Headers.UserAgent.ToString();
+            if (string.IsNullOrWhiteSpace(ua))
+                return null;
+
+            ua = ua.Trim();
+            return ua.Length <= MaxUserAgentLength ? ua : ua[..MaxUserAgentLength];
+        }
+
         /// Fingerprint = HMAC-SHA256(secret, deviceId + "|" + ipAddress).
         
         public string ComputeFingerprint(string deviceId)

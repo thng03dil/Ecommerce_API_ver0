@@ -18,6 +18,8 @@ namespace Ecommerce.Application.Services.Implementations
     {
         private const int MaxLoginFailures = 5;
         private static readonly TimeSpan LoginFailureWindow = TimeSpan.FromMinutes(15);
+        private const int RefreshTokenIpMaxLength = 100;
+        private const int RefreshTokenUserAgentMaxLength = 500;
 
         private readonly IUserRepo _userRepo;
         private readonly IRoleRepo _roleRepo;
@@ -327,6 +329,8 @@ namespace Ecommerce.Application.Services.Implementations
                 deviceId,
                 sessionId,
                 familyId);
+            refreshEntity.IpAddress = TruncateForRefreshTokenAudit(_fingerprint.GetClientIpAddress(), RefreshTokenIpMaxLength);
+            refreshEntity.UserAgent = TruncateForRefreshTokenAudit(_fingerprint.GetUserAgent(), RefreshTokenUserAgentMaxLength);
 
             // saveDB
             await _refreshTokenRepo.AddAsync(refreshEntity);
@@ -353,6 +357,14 @@ namespace Ecommerce.Application.Services.Implementations
                 RefreshToken = refreshPlain,
                 ExpiresIn = _jwtSettings.ExpiryMinutes * 60
             };
+        }
+
+        private static string? TruncateForRefreshTokenAudit(string? value, int maxLength)
+        {
+            if (string.IsNullOrEmpty(value))
+                return value;
+            value = value.Trim();
+            return value.Length <= maxLength ? value : value[..maxLength];
         }
     }
 }

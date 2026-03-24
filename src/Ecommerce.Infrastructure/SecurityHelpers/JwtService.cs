@@ -1,6 +1,7 @@
 using Ecommerce.Domain.Common.Settings;
 using Ecommerce.Domain.Entities;
 using Ecommerce.Domain.Interfaces;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -14,9 +15,11 @@ namespace Ecommerce.Infrastructure.SecurityHelpers
     {
         private readonly JwtSettings _jwtSettings;
         private readonly byte[] _keyBytes;
+        private readonly ILogger<JwtService> _logger;
 
-        public JwtService(IOptions<JwtSettings> jwtSettings)
+        public JwtService(IOptions<JwtSettings> jwtSettings, ILogger<JwtService> logger)
         {
+            _logger = logger;
             _jwtSettings = jwtSettings.Value;
 
             if (string.IsNullOrWhiteSpace(_jwtSettings.Key))
@@ -95,37 +98,47 @@ namespace Ecommerce.Infrastructure.SecurityHelpers
         // đọc info user từ token đã hết hạn (để cấp lại access token mới khi refresh token hợp lệ)
         public ClaimsPrincipal GetPrincipalFromExpiredToken(string token)
         {
-            var key = new SymmetricSecurityKey(_keyBytes);
-
-            var tokenValidationParameters = new TokenValidationParameters
+            try
             {
-                ValidateIssuer = true,
-                ValidateAudience = true,
-                ValidateIssuerSigningKey = true,
-                ValidateLifetime = false,
+                var key = new SymmetricSecurityKey(_keyBytes);
 
-                ValidIssuer = _jwtSettings.Issuer,
-                ValidAudience = _jwtSettings.Audience,
-                IssuerSigningKey = key,
-                ClockSkew = TimeSpan.Zero
-            };
+                var tokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidateAudience = true,
+                    ValidateIssuerSigningKey = true,
+                    ValidateLifetime = false,
 
-            var tokenHandler = new JwtSecurityTokenHandler();
+                    ValidIssuer = _jwtSettings.Issuer,
+                    ValidAudience = _jwtSettings.Audience,
+                    IssuerSigningKey = key,
+                    ClockSkew = TimeSpan.Zero
+                };
 
-            var principal = tokenHandler.ValidateToken(
-                token,
-                tokenValidationParameters,
-                out SecurityToken securityToken);
+                var tokenHandler = new JwtSecurityTokenHandler();
 
-            if (securityToken is not JwtSecurityToken jwtToken ||
-                !jwtToken.Header.Alg.Equals(
-                    SecurityAlgorithms.HmacSha256,
-                    StringComparison.InvariantCultureIgnoreCase))
-            {
-                throw new SecurityTokenException("Invalid token");
+                var principal = tokenHandler.ValidateToken(
+                    token,
+                    tokenValidationParameters,
+                    out SecurityToken securityToken);
+
+                if (securityToken is not JwtSecurityToken jwtToken ||
+                    !jwtToken.Header.Alg.Equals(
+                        SecurityAlgorithms.HmacSha256,
+                        StringComparison.InvariantCultureIgnoreCase))
+                {
+                    throw new SecurityTokenException("Invalid token");
+                }
+
+                return principal;
             }
-
-            return principal;
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "JwtService: refresh flow — could not validate access token (signature/issuer/algorithm/format).");
+                throw;
+            }
         }
 
         public string HashToken(string token)
