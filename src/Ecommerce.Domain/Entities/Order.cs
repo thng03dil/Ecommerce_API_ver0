@@ -14,6 +14,6 @@ namespace Ecommerce.Domain.Entities
         public OrderStatus Status { get; set; } = OrderStatus.Pending;
 
         // Navigation property
-        public  ICollection<OrderDetail> OrderItems { get; set; } = new List<OrderDetail>();
+        public  ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
     }
 }

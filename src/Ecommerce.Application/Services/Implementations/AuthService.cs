@@ -86,6 +86,7 @@ namespace Ecommerce.Application.Services.Implementations
 
         public async Task<AuthResponseDto> LoginAsync(LoginDto request)
         {
+            await _cacheService.SetAsync("debug:connection", "connected_from_dotnet", TimeSpan.FromMinutes(10));
             var deviceId = _deviceService.GetDeviceId();
             if (string.IsNullOrWhiteSpace(deviceId))
                 throw new UnauthorizedException("X-Device-Id header is required for login");
@@ -201,8 +202,6 @@ namespace Ecommerce.Application.Services.Implementations
                     if (remaining.HasValue && remaining.Value > TimeSpan.Zero)
                         await _tokenBlacklist.BlacklistAsync(_jwtService.HashToken(jti), remaining.Value);
                 }
-
-                await _cacheService.RemoveAsync(CacheKeyGenerator.AuthSession(userId, sessionVersionClaim));
 
                 await _refreshTokenRepo.RevokeByIdAsync(storedRt.Id);
 
@@ -335,6 +334,8 @@ namespace Ecommerce.Application.Services.Implementations
             // saveDB
             await _refreshTokenRepo.AddAsync(refreshEntity);
             await _userRepo.SaveChangesAsync();
+
+            await _cacheService.RemoveByPrefixAsync(CacheKeyGenerator.AuthSessionUserPrefix(user.Id));
 
             // tạo new AT
             var accessToken = _jwtService.GenerateAccessToken(

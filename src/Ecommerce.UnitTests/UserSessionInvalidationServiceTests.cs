@@ -56,7 +56,7 @@ public class UserSessionInvalidationServiceTests
         user.SessionVersion.Should().Be(oldSv + 1);
         _userRepo.Verify(x => x.SaveChangesAsync(), Times.Once);
         _cacheService.Verify(
-            x => x.RemoveAsync(CacheKeyGenerator.AuthSession(userId, oldSv)),
+            x => x.RemoveByPrefixAsync(CacheKeyGenerator.AuthSessionUserPrefix(userId)),
             Times.Once);
     }
 

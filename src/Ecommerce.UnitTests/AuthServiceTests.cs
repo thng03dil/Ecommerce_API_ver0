@@ -1,5 +1,6 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using Ecommerce.Application.Common.Caching;
 using Ecommerce.Application.DTOs.Auth;
 using Ecommerce.Application.DTOs.Common;
 using Ecommerce.Application.Exceptions;
@@ -362,6 +363,9 @@ public class AuthServiceTests
         _refreshTokenRepo.Verify(x => x.RevokeByIdAsync(900), Times.Once);
         _refreshTokenRepo.Verify(x => x.AddAsync(It.IsAny<RefreshToken>()), Times.Once);
         _userRepo.Verify(x => x.SaveChangesAsync(), Times.Once);
+        _cacheService.Verify(
+            x => x.RemoveByPrefixAsync(CacheKeyGenerator.AuthSessionUserPrefix(userId)),
+            Times.Once);
     }
 
     [Fact]

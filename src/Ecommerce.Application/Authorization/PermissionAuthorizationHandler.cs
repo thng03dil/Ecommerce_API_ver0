@@ -1,25 +1,40 @@
+using System.Security.Claims;
+using Ecommerce.Application.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
 
-namespace Ecommerce.Application.Authorization
+namespace Ecommerce.Application.Authorization;
+
+public class PermissionAuthorizationHandler : AuthorizationHandler<PermissionRequirement>
 {
-    public class PermissionAuthorizationHandler : AuthorizationHandler<PermissionRequirement>
-    {
-        protected override Task HandleRequirementAsync(AuthorizationHandlerContext context, PermissionRequirement requirement)
-        {
-            // Admin bypass: Admin has all permissions.
-            if (context.User.IsInRole("Admin"))
-            {
-                context.Succeed(requirement);
-                return Task.CompletedTask;
-            }
+    private readonly IHttpContextAccessor _httpContextAccessor;
 
-            var permissions = context.User.FindAll("permissions")
-                                      .Select(x => x.Value);
-            if (permissions.Contains(requirement.Permission))
-            {
-                context.Succeed(requirement);
-            }
-            return Task.CompletedTask;
+    public PermissionAuthorizationHandler(IHttpContextAccessor httpContextAccessor)
+    {
+        _httpContextAccessor = httpContextAccessor;
+    }
+
+    protected override async Task HandleRequirementAsync(
+        AuthorizationHandlerContext context,
+        PermissionRequirement requirement)
+    {
+        if (context.User.IsInRole("Admin"))
+        {
+            context.Succeed(requirement);
+            return;
         }
+
+        var idClaim = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!int.TryParse(idClaim, out var userId) || userId <= 0)
+            return;
+
+        var httpContext = _httpContextAccessor.HttpContext;
+        if (httpContext == null)
+            return;
+
+        var authService = httpContext.RequestServices.GetRequiredService<IAuthService>();
+        if (await authService.HasPermissionAsync(userId, requirement.Permission))
+            context.Succeed(requirement);
     }
 }

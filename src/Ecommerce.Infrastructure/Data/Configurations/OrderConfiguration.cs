@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using System;
 using System.Collections.Generic;
@@ -32,16 +32,20 @@ namespace Ecommerce.Infrastructure.Data.Configurations
             builder.Property(o => o.Status)
                 .HasConversion(
                     v => v.ToString(),
-                    v => (OrderStatus)Enum.Parse(typeof(OrderStatus), v))
+                    v => ParseOrderStatusSafe(v))
                 .HasMaxLength(20)
                 .IsRequired();
 
-            // Thiết lập quan hệ 1-N với OrderDetail
-            // Khi xóa 1 Order, các OrderItem liên quan sẽ bị xóa theo (Cascade)
+            // when delete order, delete all related order items
             builder.HasMany(o => o.OrderItems)
              .WithOne(i => i.Order)
              .HasForeignKey(i => i.OrderId)
              .OnDelete(DeleteBehavior.Cascade);
         }
+
+        private static OrderStatus ParseOrderStatusSafe(string value) =>
+            Enum.TryParse<OrderStatus>(value, ignoreCase: true, out var parsed)
+                ? parsed
+                : OrderStatus.Pending;
     }
 }

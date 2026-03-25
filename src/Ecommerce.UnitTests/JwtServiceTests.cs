@@ -81,7 +81,7 @@ public class JwtServiceTests
         jwt.Claims.Should().Contain(c => c.Type == "sv" && c.Value == "9");
         jwt.Claims.Should().Contain(c => c.Type == "fp" && c.Value == "fphash");
         jwt.Claims.Should().Contain(c => c.Type == System.Security.Claims.ClaimTypes.Role && c.Value == "Admin");
-        jwt.Claims.Should().Contain(c => c.Type == "permissions" && c.Value == "products.read");
+        jwt.Claims.Should().NotContain(c => c.Type == "permissions");
     }
 
     [Fact]

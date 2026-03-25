@@ -1,4 +1,4 @@
-﻿using Ecommerce.Application.Services.Implementations;
+using Ecommerce.Application.Services.Implementations;
 using Ecommerce.Application.Services.Interfaces;
 using Ecommerce.Domain.Interfaces;
 using Ecommerce.Infrastructure.SecurityHelpers;
@@ -16,6 +16,7 @@ namespace Ecommerce.API.Extensions
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IRoleService, RoleService>();
             services.AddScoped<IPermissionService, PermissionService>();
+            services.AddScoped<IOrderService, OrderService>();
             services.AddScoped<IDeviceService, DeviceService>();
             services.AddScoped<IUserSessionInvalidationService, UserSessionInvalidationService>();
             services.AddScoped<ISessionValidationService, SessionValidationService>();

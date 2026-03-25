@@ -16,9 +16,7 @@ public class PermissionServiceTests
 {
     private readonly Mock<IPermissionRepo> _permissionRepo = new();
     private readonly Mock<IRoleRepo> _roleRepo = new();
-    private readonly Mock<IUserRepo> _userRepo = new();
     private readonly Mock<ICacheService> _cacheService = new();
-    private readonly Mock<IUserSessionInvalidationService> _sessionInvalidation = new();
     private readonly PermissionService _sut;
 
     public PermissionServiceTests()
@@ -26,9 +24,7 @@ public class PermissionServiceTests
         _sut = new PermissionService(
             _permissionRepo.Object,
             _roleRepo.Object,
-            _userRepo.Object,
-            _cacheService.Object,
-            _sessionInvalidation.Object);
+            _cacheService.Object);
     }
 
     #region GetAllAsync
@@ -177,11 +173,10 @@ public class PermissionServiceTests
         result.Data!.Entity.Should().Be("cat");
         _permissionRepo.Verify(x => x.SaveChangesAsync(), Times.Once);
         _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.PermissionVersionKey()), Times.Once);
-        _sessionInvalidation.Verify(x => x.InvalidateAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
-    public async Task CreateAsync_WhenAdminExists_ShouldLinkToAdminAndInvalidateAdminUsers()
+    public async Task CreateAsync_WhenAdminExists_ShouldLinkToAdminWithoutSessionInvalidation()
     {
         var adminRole = new Role { Id = 1, Name = "Admin" };
         _permissionRepo.Setup(x => x.ExistsByEntityActionAsync("u", "x", null)).ReturnsAsync(false);
@@ -191,14 +186,12 @@ public class PermissionServiceTests
             .Returns(Task.CompletedTask);
         _permissionRepo.Setup(x => x.RolePermissionExistsAsync(1, 77)).ReturnsAsync(false);
         _roleRepo.Setup(x => x.GetByNameRoleAsync("Admin")).ReturnsAsync(adminRole);
-        _userRepo.Setup(x => x.GetActiveUserIdsByRoleIdAsync(1)).ReturnsAsync(new List<int> { 10, 11 });
 
         var result = await _sut.CreateAsync(new PermissionCreateDto { Entity = "U", Action = "X" });
 
         result.Success.Should().BeTrue();
         _permissionRepo.Verify(x => x.AddRolePermissionAsync(It.Is<RolePermission>(rp => rp.RoleId == 1 && rp.PermissionId == 77)), Times.Once);
-        _sessionInvalidation.Verify(x => x.InvalidateAsync(10, It.IsAny<CancellationToken>()), Times.Once);
-        _sessionInvalidation.Verify(x => x.InvalidateAsync(11, It.IsAny<CancellationToken>()), Times.Once);
+        _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.PermissionVersionKey()), Times.Once);
     }
 
     #endregion
@@ -227,12 +220,11 @@ public class PermissionServiceTests
     }
 
     [Fact]
-    public async Task UpdateAsync_WhenValid_ShouldUpdateInvalidateSessionsAndBumpVersion()
+    public async Task UpdateAsync_WhenValid_ShouldRemoveItemCacheAndBumpVersion()
     {
         var p = new Permission { Id = 2, Entity = "a", Action = "b", Name = "a.b", IsSystem = false, CreatedAt = DateTime.UtcNow };
         _permissionRepo.Setup(x => x.GetByIdAsync(2)).ReturnsAsync(p);
         _permissionRepo.Setup(x => x.ExistsByEntityActionAsync("c", "d", 2)).ReturnsAsync(false);
-        _userRepo.Setup(x => x.GetActiveUserIdsHavingPermissionAsync(2)).ReturnsAsync(new List<int> { 5 });
 
         var result = await _sut.UpdateAsync(2, new PermissionUpdateDto { Entity = "c", Action = "d", IsSystem = true, Description = "x" });
 
@@ -240,8 +232,8 @@ public class PermissionServiceTests
         p.Entity.Should().Be("c");
         p.Name.Should().Be("c.d");
         _permissionRepo.Verify(x => x.UpdateAsync(p), Times.Once);
+        _cacheService.Verify(x => x.RemoveAsync(CacheKeyGenerator.Permission(2)), Times.Once);
         _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.PermissionVersionKey()), Times.Once);
-        _sessionInvalidation.Verify(x => x.InvalidateAsync(5, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     #endregion
@@ -283,12 +275,11 @@ public class PermissionServiceTests
     }
 
     [Fact]
-    public async Task DeleteAsync_WhenValid_ShouldSoftDeleteHardDeleteLinksAndInvalidateUsers()
+    public async Task DeleteAsync_WhenValid_ShouldSoftDeleteHardDeleteLinksRemoveCacheAndBumpVersion()
     {
         var p = new Permission { Id = 8, IsSystem = false, Entity = "a", Action = "b", Name = "a.b", CreatedAt = DateTime.UtcNow };
         _permissionRepo.Setup(x => x.GetByIdAsync(8)).ReturnsAsync(p);
         _permissionRepo.Setup(x => x.IsAssignedToAnyNonAdminRoleAsync(8)).ReturnsAsync(false);
-        _userRepo.Setup(x => x.GetActiveUserIdsHavingPermissionAsync(8)).ReturnsAsync(new List<int> { 20 });
 
         var result = await _sut.DeleteAsync(8);
 
@@ -296,8 +287,8 @@ public class PermissionServiceTests
         p.IsDeleted.Should().BeTrue();
         _permissionRepo.Verify(x => x.SaveChangesAsync(), Times.Once);
         _permissionRepo.Verify(x => x.HardDeleteRolePermissionsByPermissionIdAsync(8), Times.Once);
+        _cacheService.Verify(x => x.RemoveAsync(CacheKeyGenerator.Permission(8)), Times.Once);
         _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.PermissionVersionKey()), Times.Once);
-        _sessionInvalidation.Verify(x => x.InvalidateAsync(20, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     #endregion

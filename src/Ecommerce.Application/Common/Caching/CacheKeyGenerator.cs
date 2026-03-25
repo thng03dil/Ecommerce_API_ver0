@@ -52,6 +52,10 @@ namespace Ecommerce.Application.Common.Caching
         public static string AuthSession(int userId, int sessionVersion) =>
             $"auth:session:user:{userId}:v{sessionVersion}";
 
+        /// <summary>Prefix logic để xóa mọi phiên bản session Redis của user (khớp auth:session:user:{id}:v*).</summary>
+        public static string AuthSessionUserPrefix(int userId) =>
+            $"auth:session:user:{userId}:v";
+
         public static string LoginFailure(string normalizedEmail) =>
             $"auth:loginfail:{normalizedEmail.ToLowerInvariant()}";
         /// <summary>Computes a short hash from an object for use in cache keys (e.g. filter JSON).</summary>

@@ -60,6 +60,13 @@ namespace Ecommerce.UnitTests
         }
 
         [Fact]
+        public void AuthSessionUserPrefix_ReturnsPrefixForPatternDelete()
+        {
+            var prefix = CacheKeyGenerator.AuthSessionUserPrefix(100);
+            Assert.Equal("auth:session:user:100:v", prefix);
+        }
+
+        [Fact]
         public void BlacklistToken_ReturnsCorrectKey()
         {
             var key = CacheKeyGenerator.BlacklistToken("hash123");

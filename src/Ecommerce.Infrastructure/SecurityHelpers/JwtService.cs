@@ -54,17 +54,6 @@ namespace Ecommerce.Infrastructure.SecurityHelpers
                 new Claim("fp", fingerprint ?? string.Empty),  // fingerprint hash from clientIP + deviceID
             };
 
-            if (user.Role?.RolePermissions != null)
-            {
-                var permissions = user.Role.RolePermissions
-                    .Select(rp => rp.Permission.Name);
-
-                foreach (var permissionName in permissions)
-                {
-                    claims.Add(new Claim("permissions", permissionName));
-                }
-            }
-
             var key = new SymmetricSecurityKey(_keyBytes);
 
             var credentials = new SigningCredentials(

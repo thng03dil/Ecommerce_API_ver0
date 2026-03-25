@@ -168,6 +168,7 @@ public class CategoryServiceTests
         _categoryRepo.Verify(x => x.UpdateAsync(existing), Times.Once);
         _cacheService.Verify(x => x.RemoveAsync(CacheKeyGenerator.Category(id)), Times.Once);
         _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.CategoryVersionKey()), Times.Once);
+        _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.ProductVersionKey()), Times.Once);
     }
 
     #endregion
@@ -214,6 +215,7 @@ public class CategoryServiceTests
         _categoryRepo.Verify(x => x.SaveChangesAsync(), Times.Once);
         _cacheService.Verify(x => x.RemoveAsync(CacheKeyGenerator.Category(1)), Times.Once);
         _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.CategoryVersionKey()), Times.Once);
+        _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.ProductVersionKey()), Times.Once);
     }
 
     #endregion

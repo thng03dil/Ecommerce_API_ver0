@@ -1,4 +1,4 @@
-﻿using Ecommerce.Application.Services.Interfaces;
+using Ecommerce.Application.Services.Interfaces;
 using Ecommerce.Domain.Interfaces;
 using Ecommerce.Infrastructure.Data;
 using Ecommerce.Infrastructure.RedisCaching;
@@ -70,6 +70,11 @@ namespace Ecommerce.API.Extensions
                 Log.Warning("Redis ConnectionString is missing. Using MemoryCache instead.");
             }
 
+            services.Configure<RedisCacheOptions>(o =>
+            {
+                o.DistributedCacheKeyPrefix = string.IsNullOrEmpty(redisConn) ? string.Empty : instanceName;
+            });
+
             services.AddSingleton<ICacheService, RedisCacheService>();
 
             return services;
@@ -83,6 +88,7 @@ namespace Ecommerce.API.Extensions
             services.AddScoped<IRefreshTokenRepo, RefreshTokenRepo>();
             services.AddScoped<IRoleRepo, RoleRepo>();
             services.AddScoped<IPermissionRepo, PermissionRepo>();
+            services.AddScoped<IOrderRepo, OrderRepo>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
 
             return services;

@@ -11,10 +11,8 @@ namespace Ecommerce.Infrastructure.Data.Configurations
     {
         public void Configure(EntityTypeBuilder<OrderItem> builder)
         {
-            // Tên bảng
             builder.ToTable("OrderItems");
 
-            // Khóa chính
             builder.HasKey(od => od.Id);
 
             builder.Property(od => od.Quantity)
@@ -24,8 +22,7 @@ namespace Ecommerce.Infrastructure.Data.Configurations
                 .HasColumnType("decimal(18,2)")
                 .IsRequired();
 
-            // Quan hệ với Product
-            // Sử dụng Restrict để không xóa Product khi xóa OrderDetail
+            // Restrict to not delete Product when OrderItem is deleted
             builder.HasOne<Product>()
                 .WithMany()
                 .HasForeignKey(od => od.ProductId)

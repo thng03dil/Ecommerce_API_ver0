@@ -19,22 +19,16 @@ namespace Ecommerce.Application.Services.Implementations
 
         private readonly IPermissionRepo _permissionRepo;
         private readonly IRoleRepo _roleRepo;
-        private readonly IUserRepo _userRepo;
         private readonly ICacheService _cacheService;
-        private readonly IUserSessionInvalidationService _sessionInvalidation;
 
         public PermissionService(
             IPermissionRepo permissionRepo,
             IRoleRepo roleRepo,
-            IUserRepo userRepo,
-            ICacheService cacheService,
-            IUserSessionInvalidationService sessionInvalidation)
+            ICacheService cacheService)
         {
             _permissionRepo = permissionRepo;
             _roleRepo = roleRepo;
-            _userRepo = userRepo;
             _cacheService = cacheService;
-            _sessionInvalidation = sessionInvalidation;
         }
 
         public async Task<ApiResponse<PagedResponse<PermissionResponseDto>>> GetAllAsync(PaginationDto pagedto)
@@ -145,13 +139,6 @@ namespace Ecommerce.Application.Services.Implementations
 
                 await _cacheService.IncrementAsync(CacheKeyGenerator.PermissionVersionKey());
 
-                if (adminRole != null)
-                {
-                    var adminUserIds = await _userRepo.GetActiveUserIdsByRoleIdAsync(adminRole.Id);
-                    foreach (var uid in adminUserIds)
-                        await _sessionInvalidation.InvalidateAsync(uid);
-                }
-
                 var item = MapToResponseDto(permission);
                 return ApiResponse<PermissionResponseDto>.SuccessResponse(
                        item,
@@ -190,12 +177,8 @@ namespace Ecommerce.Application.Services.Implementations
 
                 await _permissionRepo.UpdateAsync(permission);
 
+                await _cacheService.RemoveAsync(CacheKeyGenerator.Permission(id));
                 await _cacheService.IncrementAsync(CacheKeyGenerator.PermissionVersionKey());
-
-
-                var usersWithPerm = await _userRepo.GetActiveUserIdsHavingPermissionAsync(id);
-                foreach (var uid in usersWithPerm)
-                    await _sessionInvalidation.InvalidateAsync(uid);
 
                 var item = MapToResponseDto(permission);
                 return ApiResponse<PermissionResponseDto>.SuccessResponse(
@@ -225,18 +208,14 @@ namespace Ecommerce.Application.Services.Implementations
                 if (await _permissionRepo.IsAssignedToAnyNonAdminRoleAsync(permission.Id))
                     throw new BusinessException("Permission is assigned by role user. Please remove permissions before deleting");
 
-                var usersWithPerm = await _userRepo.GetActiveUserIdsHavingPermissionAsync(permission.Id);
-
                 permission.IsDeleted = true;
 
                 await _permissionRepo.SaveChangesAsync();
 
                 await _permissionRepo.HardDeleteRolePermissionsByPermissionIdAsync(permission.Id);
 
+                await _cacheService.RemoveAsync(CacheKeyGenerator.Permission(id));
                 await _cacheService.IncrementAsync(CacheKeyGenerator.PermissionVersionKey());
-
-                foreach (var uid in usersWithPerm)
-                    await _sessionInvalidation.InvalidateAsync(uid);
 
                 var item = MapToResponseDto(permission);
                 return ApiResponse<PermissionResponseDto>.SuccessResponse(

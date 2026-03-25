@@ -20,6 +20,11 @@ namespace Ecommerce.Infrastructure.RedisCaching
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
         };
         public int DefaultExpirationMinutes { get; set; } = 10;
+
+        /// <summary>
+        /// Phải khớp InstanceName của AddStackExchangeRedisCache để pattern xóa trùng key vật lý (vd. Ecommerce:auth:session:...).
+        /// </summary>
+        public string DistributedCacheKeyPrefix { get; set; } = string.Empty;
     }
 
     public class RedisCacheService : ICacheService
@@ -173,18 +178,20 @@ namespace Ecommerce.Infrastructure.RedisCaching
         {
             try
             {
+                var physicalPrefix = string.IsNullOrEmpty(_options.DistributedCacheKeyPrefix)
+                    ? prefix
+                    : $"{_options.DistributedCacheKeyPrefix}{prefix}";
+                var pattern = $"{physicalPrefix}*";
+
                 var endpoints = _redis.GetEndPoints();
                 foreach (var endpoint in endpoints)
                 {
                     var server = _redis.GetServer(endpoint);
-                    // get all key start by prefix (ex: product-list:*)
-                    var keys = server.Keys(database: _db.Database, pattern: $"{prefix}*").ToArray();
+                    var keys = server.Keys(database: _db.Database, pattern: pattern).ToArray();
                     foreach (var key in keys)
-                    {
                         await _db.KeyDeleteAsync(key);
-                    }
                 }
-                _logger.LogInformation("Removed cache pattern: {Prefix}*", prefix);
+                _logger.LogInformation("Removed cache pattern: {Pattern}", pattern);
             }
             catch (Exception ex)
             {

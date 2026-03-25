@@ -40,7 +40,7 @@ namespace Ecommerce.Application.Services.Implementations
                 user.LastDeviceId = null;
 
                 await _userRepo.SaveChangesAsync();
-                await _cacheService.RemoveAsync(CacheKeyGenerator.AuthSession(userId, oldSessionVersion));
+                await _cacheService.RemoveByPrefixAsync(CacheKeyGenerator.AuthSessionUserPrefix(userId));
             }
             finally
             {
