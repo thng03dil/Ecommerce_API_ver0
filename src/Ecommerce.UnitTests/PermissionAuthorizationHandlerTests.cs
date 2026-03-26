@@ -32,17 +32,14 @@ public class PermissionAuthorizationHandlerTests
     }
 
     [Fact]
-    public async Task AdminRole_SucceedsWithoutCallingAuthService()
+    public async Task WhenHasPermissionAsyncTrue_Succeeds_ViaAuthService()
     {
         var user = new ClaimsPrincipal(new ClaimsIdentity(
-            new[]
-            {
-                new Claim(ClaimTypes.NameIdentifier, "5"),
-                new Claim(ClaimTypes.Role, "Admin")
-            },
+            new[] { new Claim(ClaimTypes.NameIdentifier, "5") },
             authenticationType: "Bearer"));
         var context = CreateContext(user);
-        var authMock = new Mock<IAuthService>(MockBehavior.Strict);
+        var authMock = new Mock<IAuthService>();
+        authMock.Setup(x => x.HasPermissionAsync(5, "product.read")).ReturnsAsync(true);
         var accessor = new Mock<IHttpContextAccessor>();
         accessor.Setup(x => x.HttpContext).Returns(CreateHttpContext(authMock.Object));
 
@@ -50,9 +47,7 @@ public class PermissionAuthorizationHandlerTests
         await sut.HandleAsync(context);
 
         context.HasSucceeded.Should().BeTrue();
-        authMock.Verify(
-            x => x.HasPermissionAsync(It.IsAny<int>(), It.IsAny<string>()),
-            Times.Never);
+        authMock.Verify(x => x.HasPermissionAsync(5, "product.read"), Times.Once);
     }
 
     [Fact]

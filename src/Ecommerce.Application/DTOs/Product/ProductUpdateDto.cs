@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 
 namespace Ecommerce.Application.DTOs.ProductDtos
@@ -22,5 +22,4 @@ namespace Ecommerce.Application.DTOs.ProductDtos
 
         public int CategoryId { get; set; }
     }
-} 
- 
+}

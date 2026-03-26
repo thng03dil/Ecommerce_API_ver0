@@ -404,4 +404,46 @@ public class AuthServiceTests
             x => x.BlacklistAsync(It.IsAny<string>(), It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }
+
+    [Fact]
+    public async Task HasPermissionAsync_WhenRoleIsAdmin_ReturnsTrue_WithoutCheckingRolePermissions()
+    {
+        var adminRole = new Role { Id = 1, Name = "Admin", RolePermissions = [] };
+        var user = new User { Id = 10, RoleId = 1, Role = adminRole };
+        _userRepo.Setup(x => x.GetByIdWithPermissionsAsync(10)).ReturnsAsync(user);
+
+        var ok = await _sut.HasPermissionAsync(10, "any.permission");
+
+        ok.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task HasPermissionAsync_WhenUserHasPermission_ReturnsTrue()
+    {
+        var perm = new Permission { Id = 2, Name = "product.read", Entity = "product", Action = "read" };
+        var role = new Role
+        {
+            Id = 3,
+            Name = "User",
+            RolePermissions = [new RolePermission { Permission = perm, PermissionId = perm.Id, RoleId = 3 }]
+        };
+        var user = new User { Id = 20, RoleId = 3, Role = role };
+        _userRepo.Setup(x => x.GetByIdWithPermissionsAsync(20)).ReturnsAsync(user);
+
+        var ok = await _sut.HasPermissionAsync(20, "product.read");
+
+        ok.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task HasPermissionAsync_WhenUserLacksPermission_ReturnsFalse()
+    {
+        var role = new Role { Id = 3, Name = "User", RolePermissions = [] };
+        var user = new User { Id = 21, RoleId = 3, Role = role };
+        _userRepo.Setup(x => x.GetByIdWithPermissionsAsync(21)).ReturnsAsync(user);
+
+        var ok = await _sut.HasPermissionAsync(21, "product.delete");
+
+        ok.Should().BeFalse();
+    }
 }

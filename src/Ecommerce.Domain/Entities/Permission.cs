@@ -13,8 +13,6 @@ namespace Ecommerce.Domain.Entities
 
         public string Description { get; set; } = string.Empty;
 
-        public bool IsSystem { get; set; } = false;
-
         public ICollection<RolePermission> RolePermissions { get; set; } = new List<RolePermission>();
     }
 }

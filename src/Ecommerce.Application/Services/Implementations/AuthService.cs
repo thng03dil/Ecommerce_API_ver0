@@ -253,7 +253,12 @@ namespace Ecommerce.Application.Services.Implementations
             if (string.IsNullOrWhiteSpace(permission)) return false;
 
             var user = await _userRepo.GetByIdWithPermissionsAsync(userId);
-            if (user?.Role?.RolePermissions == null) return false;
+            if (user?.Role == null) return false;
+
+            if (string.Equals(user.Role.Name, "Admin", StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            if (user.Role.RolePermissions == null) return false;
 
             var normalized = permission.Trim().ToLowerInvariant();
             return user.Role.RolePermissions.Any(rp => rp.Permission.Name == normalized);

@@ -39,7 +39,6 @@ public class OrderService : IOrderService
         if (!outcome.Success)
             return ApiResponse<OrderResponseDto>.ErrorResponse(outcome.ErrorMessage ?? "Order failed.");
 
-        await _cacheService.IncrementAsync(CacheKeyGenerator.ProductVersionKey());
         await _cacheService.IncrementAsync(CacheKeyGenerator.CategoryVersionKey());
 
         var response = new OrderResponseDto

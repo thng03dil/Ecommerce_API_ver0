@@ -1,12 +1,12 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Ecommerce.Application.Authorization
 {
     public class PermissionAttribute : AuthorizeAttribute
     {
-        public PermissionAttribute(string permission) 
-        { 
-            Policy = $"Permission:{permission}";
+        public PermissionAttribute(string permission)
+        {
+            Policy = permission;
         }
     }
 }

@@ -3,11 +3,6 @@ using Ecommerce.Domain.Entities;
 using Ecommerce.Domain.Interfaces;
 using Ecommerce.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Text;
-using System.Linq;
 
 namespace Ecommerce.Infrastructure.Repositories
 {
@@ -54,15 +49,6 @@ namespace Ecommerce.Infrastructure.Repositories
             }
 
             return await query.AnyAsync(p => p.Entity == entity && p.Action == action);
-        }
-
-        public async Task<bool> IsAssignedToAnyNonAdminRoleAsync(int permissionId)
-        {
-            return await _context.RolePermissions
-                .Where(rp => rp.PermissionId == permissionId)
-                .AnyAsync(rp =>
-                    rp.Role.Name != "Admin" &&
-                    !rp.Role.IsDeleted);
         }
 
         public async Task HardDeleteRolePermissionsByPermissionIdAsync(int permissionId)

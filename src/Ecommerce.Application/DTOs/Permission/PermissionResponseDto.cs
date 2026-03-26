@@ -11,7 +11,6 @@ namespace Ecommerce.Application.DTOs.Permission
         public string Entity { get; set; } = string.Empty;
         public string Action { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
-        public bool IsSystem { get; set; } = false;
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
     }

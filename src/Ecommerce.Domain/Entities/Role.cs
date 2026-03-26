@@ -10,7 +10,7 @@ namespace Ecommerce.Domain.Entities
         public string Name { get; set; } = null!;
         public string? Description { get; set; }
 
-        /// <summary>Vai trò hệ thống (Admin, User, …) — không cho phép xóa.</summary>
+        /// <summary>Legacy seed flag. Built-in protection uses role names Admin and User in application logic.</summary>
         public bool IsSystem { get; set; }
 
         public ICollection<RolePermission> RolePermissions { get; set; } = new List<RolePermission>();

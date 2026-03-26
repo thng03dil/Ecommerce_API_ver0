@@ -60,7 +60,6 @@ public class PermissionServiceTests
             Entity = "x",
             Action = "y",
             Description = "",
-            IsSystem = false,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -107,7 +106,6 @@ public class PermissionServiceTests
             Entity = "e",
             Action = "a",
             Description = "d",
-            IsSystem = false,
             CreatedAt = DateTime.UtcNow
         };
         _cacheService.Setup(x => x.GetAsync<PermissionResponseDto>(It.IsAny<string>())).ReturnsAsync((PermissionResponseDto?)null);
@@ -173,6 +171,7 @@ public class PermissionServiceTests
         result.Data!.Entity.Should().Be("cat");
         _permissionRepo.Verify(x => x.SaveChangesAsync(), Times.Once);
         _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.PermissionVersionKey()), Times.Once);
+        _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.RoleVersionKey()), Times.Never);
     }
 
     [Fact]
@@ -192,6 +191,7 @@ public class PermissionServiceTests
         result.Success.Should().BeTrue();
         _permissionRepo.Verify(x => x.AddRolePermissionAsync(It.Is<RolePermission>(rp => rp.RoleId == 1 && rp.PermissionId == 77)), Times.Once);
         _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.PermissionVersionKey()), Times.Once);
+        _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.RoleVersionKey()), Times.Once);
     }
 
     #endregion
@@ -203,7 +203,7 @@ public class PermissionServiceTests
     {
         _permissionRepo.Setup(x => x.GetByIdAsync(1)).ReturnsAsync((Permission?)null);
 
-        var act = () => _sut.UpdateAsync(1, new PermissionUpdateDto { Entity = "a", Action = "b", IsSystem = false });
+        var act = () => _sut.UpdateAsync(1, new PermissionUpdateDto { Entity = "a", Action = "b" });
 
         (await act.Should().ThrowAsync<NotFoundException>()).Which.ErrorCode.Should().Be("Permission not found");
     }
@@ -211,10 +211,10 @@ public class PermissionServiceTests
     [Fact]
     public async Task UpdateAsync_WhenEntityOrActionEmpty_ShouldThrowBusinessException()
     {
-        var p = new Permission { Id = 1, Entity = "a", Action = "b", Name = "a.b", IsSystem = false, CreatedAt = DateTime.UtcNow };
+        var p = new Permission { Id = 1, Entity = "a", Action = "b", Name = "a.b", CreatedAt = DateTime.UtcNow };
         _permissionRepo.Setup(x => x.GetByIdAsync(1)).ReturnsAsync(p);
 
-        var act = () => _sut.UpdateAsync(1, new PermissionUpdateDto { Entity = "", Action = "z", IsSystem = false });
+        var act = () => _sut.UpdateAsync(1, new PermissionUpdateDto { Entity = "", Action = "z" });
 
         (await act.Should().ThrowAsync<BusinessException>()).Which.ErrorCode.Should().Be("Entity and Action are required.");
     }
@@ -222,11 +222,11 @@ public class PermissionServiceTests
     [Fact]
     public async Task UpdateAsync_WhenValid_ShouldRemoveItemCacheAndBumpVersion()
     {
-        var p = new Permission { Id = 2, Entity = "a", Action = "b", Name = "a.b", IsSystem = false, CreatedAt = DateTime.UtcNow };
+        var p = new Permission { Id = 2, Entity = "a", Action = "b", Name = "a.b", CreatedAt = DateTime.UtcNow };
         _permissionRepo.Setup(x => x.GetByIdAsync(2)).ReturnsAsync(p);
         _permissionRepo.Setup(x => x.ExistsByEntityActionAsync("c", "d", 2)).ReturnsAsync(false);
 
-        var result = await _sut.UpdateAsync(2, new PermissionUpdateDto { Entity = "c", Action = "d", IsSystem = true, Description = "x" });
+        var result = await _sut.UpdateAsync(2, new PermissionUpdateDto { Entity = "c", Action = "d", Description = "x" });
 
         result.Success.Should().BeTrue();
         p.Entity.Should().Be("c");
@@ -234,6 +234,7 @@ public class PermissionServiceTests
         _permissionRepo.Verify(x => x.UpdateAsync(p), Times.Once);
         _cacheService.Verify(x => x.RemoveAsync(CacheKeyGenerator.Permission(2)), Times.Once);
         _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.PermissionVersionKey()), Times.Once);
+        _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.RoleVersionKey()), Times.Once);
     }
 
     #endregion
@@ -251,44 +252,20 @@ public class PermissionServiceTests
     }
 
     [Fact]
-    public async Task DeleteAsync_WhenSystemPermission_ShouldThrowBusinessException()
+    public async Task DeleteAsync_WhenValid_ShouldRemoveRoleLinksSoftDeleteAndBumpCaches()
     {
-        var p = new Permission { Id = 1, IsSystem = true, Entity = "s", Action = "y", Name = "s.y", CreatedAt = DateTime.UtcNow };
-        _permissionRepo.Setup(x => x.GetByIdAsync(1)).ReturnsAsync(p);
-
-        var act = () => _sut.DeleteAsync(1);
-
-        (await act.Should().ThrowAsync<BusinessException>()).Which.ErrorCode.Should().Be("Do not delete system permission");
-    }
-
-    [Fact]
-    public async Task DeleteAsync_WhenAssignedToNonAdminRole_ShouldThrowBusinessException()
-    {
-        var p = new Permission { Id = 3, IsSystem = false, Entity = "a", Action = "b", Name = "a.b", CreatedAt = DateTime.UtcNow };
-        _permissionRepo.Setup(x => x.GetByIdAsync(3)).ReturnsAsync(p);
-        _permissionRepo.Setup(x => x.IsAssignedToAnyNonAdminRoleAsync(3)).ReturnsAsync(true);
-
-        var act = () => _sut.DeleteAsync(3);
-
-        (await act.Should().ThrowAsync<BusinessException>()).Which.ErrorCode.Should()
-            .Be("Permission is assigned by role user. Please remove permissions before deleting");
-    }
-
-    [Fact]
-    public async Task DeleteAsync_WhenValid_ShouldSoftDeleteHardDeleteLinksRemoveCacheAndBumpVersion()
-    {
-        var p = new Permission { Id = 8, IsSystem = false, Entity = "a", Action = "b", Name = "a.b", CreatedAt = DateTime.UtcNow };
+        var p = new Permission { Id = 8, Entity = "a", Action = "b", Name = "a.b", CreatedAt = DateTime.UtcNow };
         _permissionRepo.Setup(x => x.GetByIdAsync(8)).ReturnsAsync(p);
-        _permissionRepo.Setup(x => x.IsAssignedToAnyNonAdminRoleAsync(8)).ReturnsAsync(false);
 
         var result = await _sut.DeleteAsync(8);
 
         result.Success.Should().BeTrue();
         p.IsDeleted.Should().BeTrue();
-        _permissionRepo.Verify(x => x.SaveChangesAsync(), Times.Once);
         _permissionRepo.Verify(x => x.HardDeleteRolePermissionsByPermissionIdAsync(8), Times.Once);
+        _permissionRepo.Verify(x => x.SaveChangesAsync(), Times.Once);
         _cacheService.Verify(x => x.RemoveAsync(CacheKeyGenerator.Permission(8)), Times.Once);
         _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.PermissionVersionKey()), Times.Once);
+        _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.RoleVersionKey()), Times.Once);
     }
 
     #endregion

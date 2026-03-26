@@ -7,24 +7,10 @@ namespace Ecommerce.UnitTests
     public class CacheKeyGeneratorTests
     {
         [Fact]
-        public void Product_ReturnsCorrectKey()
+        public void User_ReturnsCorrectKey()
         {
-            var key = CacheKeyGenerator.Product(42);
-            Assert.Equal("product:42", key);
-        }
-
-        [Fact]
-        public void ProductList_WithEmptyFilterHash_ReturnsKeyWithVersion()
-        {
-            var key = CacheKeyGenerator.ProductList("3", 1, 10, string.Empty);
-            Assert.Equal("product:list:v3:1:10", key);
-        }
-
-        [Fact]
-        public void ProductList_WithFilterHash_ReturnsKeyWithHash()
-        {
-            var key = CacheKeyGenerator.ProductList("2", 2, 20, "abc123");
-            Assert.Equal("product:list:v2:2:20:abc123", key);
+            var key = CacheKeyGenerator.User(42);
+            Assert.Equal("user:42", key);
         }
 
         [Fact]

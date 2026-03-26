@@ -8,7 +8,6 @@ namespace Ecommerce.Domain.Interfaces
         Task<(IEnumerable<Permission>, int totalCount)> GetAllAsync(PaginationDto pagedto);
         Task<Permission?> GetByIdAsync(int id);
         Task<bool> ExistsByEntityActionAsync(string entity, string action, int? excludePermissionId = null);
-        Task<bool> IsAssignedToAnyNonAdminRoleAsync(int permissionId);
         Task HardDeleteRolePermissionsByPermissionIdAsync(int permissionId);
         Task<bool> AllIdsExistAsync(List<int> ids);
         Task AddAsync(Permission permission);

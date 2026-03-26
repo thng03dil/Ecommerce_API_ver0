@@ -121,7 +121,6 @@ namespace Ecommerce.Application.Services.Implementations
 
             await _cacheService.RemoveAsync(CacheKeyGenerator.Category(id));
             await _cacheService.IncrementAsync(CacheKeyGenerator.CategoryVersionKey());
-            await _cacheService.IncrementAsync(CacheKeyGenerator.ProductVersionKey());
 
             var item = MapToResponseDto(category);
             return ApiResponse<CategoryResponseDto>.SuccessResponse(
@@ -145,7 +144,6 @@ namespace Ecommerce.Application.Services.Implementations
 
             await _cacheService.RemoveAsync(CacheKeyGenerator.Category(id));
             await _cacheService.IncrementAsync(CacheKeyGenerator.CategoryVersionKey());
-            await _cacheService.IncrementAsync(CacheKeyGenerator.ProductVersionKey());
 
             var item = MapToResponseDto(category);
             return ApiResponse<CategoryResponseDto>.SuccessResponse(
@@ -158,7 +156,7 @@ namespace Ecommerce.Application.Services.Implementations
             Name = c.Name,
             Description = c.Description,
             Slug = c.Slug,
-            ProductCount = c.Products?.Count() ?? 0,
+            ProductCount = c.Products != null ? c.Products.Count(p => !p.IsDeleted) : 0,
             CreatedAt = c.CreatedAt,
             UpdatedAt = c.UpdatedAt
         };

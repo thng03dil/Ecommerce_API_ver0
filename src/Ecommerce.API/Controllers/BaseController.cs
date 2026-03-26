@@ -19,8 +19,6 @@ namespace Ecommerce.API.Controllers
             }
         }
 
-        protected string CurrentUserRole => User?.FindFirst(ClaimTypes.Role)?.Value ?? string.Empty;
-
         protected IActionResult OkResponse<T>(T data, string message = "Success")
         {
             return Ok(new

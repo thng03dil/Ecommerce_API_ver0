@@ -20,9 +20,9 @@ namespace Ecommerce.Infrastructure.Repositories
             CategoryFilterDto filter,
             PaginationDto pagination)
         {
+            // 1. Chỉ dùng 1 query duy nhất và nạp Products ngay từ đầu
             var query = _context.Categories
-                .AsNoTracking()
-                .Include(c => c.Products.Where(p => !p.IsDeleted))
+                .Include(c => c.Products.Where(p => !p.IsDeleted)) // Nạp sản phẩm chưa xóa
                 .Where(x => !x.IsDeleted)
                 .ApplySearch(filter.Keyword, c => c.Name)
                 .ApplySearch(filter.Slug, c => c.Slug)
@@ -30,18 +30,9 @@ namespace Ecommerce.Infrastructure.Repositories
 
             var total = await query.CountAsync();
 
+            // 2. Lấy dữ liệu nguyên bản (không dùng Select thủ công gán lại Products)
             var items = await query
                 .ApplyPagination(pagination.PageNumber, pagination.PageSize)
-                .Select(c => new Category
-                {
-                    Id = c.Id,
-                    Name = c.Name,
-                    Description = c.Description,
-                    Slug = c.Slug,
-                    CreatedAt = c.CreatedAt,
-                    UpdatedAt = c.UpdatedAt,
-                    Products = _context.Products.Where(p => p.CategoryId == c.Id && !p.IsDeleted).ToList()
-                })
                 .ToListAsync();
 
             return (items, total);

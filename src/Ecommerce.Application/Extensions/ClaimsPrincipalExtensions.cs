@@ -1,21 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
 using System.Security.Claims;
-using System.Security.Principal;
-using System.Text;
 
-namespace Ecommerce.Application.Extensions
+namespace Ecommerce.Application.Extensions;
+
+public static class ClaimsPrincipalExtensions
 {
-    public static class ClaimsPrincipalExtensions
+    public static int GetUserId(this ClaimsPrincipal principal)
     {
-        public static int GetUserId(this ClaimsPrincipal principal)
-        {
-            var claim = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (int.TryParse(claim, out var userId))
-            {
-                return userId;
-            }
-            return 0;
-        }
+        var claim = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return int.TryParse(claim, out var userId) ? userId : 0;
     }
 }

@@ -29,41 +29,12 @@ public class ProductServiceTests
     #region GetAllAsync
 
     [Fact]
-    public async Task GetAllAsync_WhenCacheHits_ShouldNotCallRepository()
-    {
-        var filter = TestDataMother.CreateProductFilter();
-        var pagination = TestDataMother.CreatePagination();
-        var cached = new PagedResponse<ProductResponseDto>(
-            new List<ProductResponseDto> { new() { Id = 1, Name = "C" } },
-            pagination.PageNumber,
-            pagination.PageSize,
-            1);
-
-        _cacheService.Setup(x => x.GetVersionAsync(CacheKeyGenerator.ProductVersionKey())).ReturnsAsync("3");
-        _cacheService
-            .Setup(x => x.GetAsync<PagedResponse<ProductResponseDto>>(It.IsAny<string>()))
-            .ReturnsAsync(cached);
-
-        var result = await _sut.GetAllAsync(filter, pagination);
-
-        result.Success.Should().BeTrue();
-        result.Data.Should().BeEquivalentTo(cached);
-        _productRepo.Verify(
-            x => x.GetFilteredAsync(It.IsAny<ProductFilterDto>(), It.IsAny<PaginationDto>()),
-            Times.Never);
-    }
-
-    [Fact]
-    public async Task GetAllAsync_WhenCacheMiss_ShouldCallGetFilteredAndSetPagedCache()
+    public async Task GetAllAsync_ShouldAlwaysLoadFromRepository()
     {
         var filter = TestDataMother.CreateProductFilter();
         var pagination = TestDataMother.CreatePagination();
         var product = TestDataMother.CreateProduct(20, 1, "Listed");
 
-        _cacheService.Setup(x => x.GetVersionAsync(CacheKeyGenerator.ProductVersionKey())).ReturnsAsync("1");
-        _cacheService
-            .Setup(x => x.GetAsync<PagedResponse<ProductResponseDto>>(It.IsAny<string>()))
-            .ReturnsAsync((PagedResponse<ProductResponseDto>?)null);
         _productRepo
             .Setup(x => x.GetFilteredAsync(filter, pagination))
             .ReturnsAsync(([product], 1));
@@ -73,12 +44,8 @@ public class ProductServiceTests
         result.Success.Should().BeTrue();
         result.Data!.Data.Should().ContainSingle(x => x.Id == 20 && x.Name == "Listed");
         _productRepo.Verify(x => x.GetFilteredAsync(filter, pagination), Times.Once);
-        _cacheService.Verify(
-            x => x.SetAsync(
-                It.IsAny<string>(),
-                It.IsAny<PagedResponse<ProductResponseDto>>(),
-                It.IsAny<TimeSpan?>()),
-            Times.Once);
+        _cacheService.Verify(x => x.GetAsync<PagedResponse<ProductResponseDto>>(It.IsAny<string>()), Times.Never);
+        _cacheService.Verify(x => x.SetAsync(It.IsAny<string>(), It.IsAny<PagedResponse<ProductResponseDto>>(), It.IsAny<TimeSpan?>()), Times.Never);
     }
 
     #endregion
@@ -86,31 +53,9 @@ public class ProductServiceTests
     #region GetByIdAsync
 
     [Fact]
-    public async Task GetByIdAsync_WhenCacheHits_ShouldReturnWithoutDatabase()
-    {
-        var cached = new ProductResponseDto
-        {
-            Id = 1,
-            Name = "Cached",
-            Price = 10m,
-            Stock = 1,
-            CategoryId = 1,
-            CategoryName = "Cat"
-        };
-        _cacheService.Setup(x => x.GetAsync<ProductResponseDto>(It.IsAny<string>())).ReturnsAsync(cached);
-
-        var result = await _sut.GetByIdAsync(1);
-
-        result.Success.Should().BeTrue();
-        result.Data.Should().BeEquivalentTo(cached);
-        _productRepo.Verify(x => x.GetByIdAsync(It.IsAny<int>()), Times.Never);
-    }
-
-    [Fact]
-    public async Task GetByIdAsync_WhenCacheMissAndProductExists_ShouldLoadSetCacheAndMap()
+    public async Task GetByIdAsync_WhenProductExists_ShouldLoadFromDatabase()
     {
         var product = TestDataMother.CreateProduct(1, 1, "Test Product");
-        _cacheService.Setup(x => x.GetAsync<ProductResponseDto>(It.IsAny<string>())).ReturnsAsync((ProductResponseDto?)null);
         _productRepo.Setup(x => x.GetByIdAsync(1)).ReturnsAsync(product);
 
         var result = await _sut.GetByIdAsync(1);
@@ -123,15 +68,13 @@ public class ProductServiceTests
         result.Data.CategoryName.Should().Be("Cat");
 
         _productRepo.Verify(x => x.GetByIdAsync(1), Times.Once);
-        _cacheService.Verify(
-            x => x.SetAsync(CacheKeyGenerator.Product(1), It.Is<ProductResponseDto>(p => p.Name == "Test Product"), It.IsAny<TimeSpan?>()),
-            Times.Once);
+        _cacheService.Verify(x => x.GetAsync<ProductResponseDto>(It.IsAny<string>()), Times.Never);
+        _cacheService.Verify(x => x.SetAsync(It.IsAny<string>(), It.IsAny<ProductResponseDto>(), It.IsAny<TimeSpan?>()), Times.Never);
     }
 
     [Fact]
     public async Task GetByIdAsync_WhenProductNotFound_ShouldThrowNotFoundException()
     {
-        _cacheService.Setup(x => x.GetAsync<ProductResponseDto>(It.IsAny<string>())).ReturnsAsync((ProductResponseDto?)null);
         _productRepo.Setup(x => x.GetByIdAsync(999)).ReturnsAsync((Product?)null);
 
         var act = () => _sut.GetByIdAsync(999);
@@ -156,7 +99,7 @@ public class ProductServiceTests
     }
 
     [Fact]
-    public async Task CreateAsync_WhenValid_ShouldPersistLoadCategoryAndBumpProductAndCategoryVersions()
+    public async Task CreateAsync_WhenValid_ShouldPersistLoadCategoryAndBumpCategoryVersionOnly()
     {
         _productRepo.Setup(x => x.CategoryExistsAsync(1)).ReturnsAsync(true);
         _productRepo.Setup(x => x.ExistsByNameAsync(It.IsAny<string>(), It.IsAny<int?>())).ReturnsAsync(false);
@@ -174,7 +117,6 @@ public class ProductServiceTests
         _productRepo.Verify(x => x.AddAsync(It.IsAny<Product>()), Times.Once);
         _productRepo.Verify(x => x.SaveChangesAsync(), Times.Once);
         _productRepo.Verify(x => x.LoadCategoryAsync(It.IsAny<Product>()), Times.Once);
-        _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.ProductVersionKey()), Times.Once);
         _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.CategoryVersionKey()), Times.Once);
     }
 
@@ -220,7 +162,7 @@ public class ProductServiceTests
     }
 
     [Fact]
-    public async Task UpdateAsync_WhenValid_ShouldUpdateCachesAndBumpBothVersions()
+    public async Task UpdateAsync_WhenValid_ShouldUpdateAndBumpCategoryVersionOnly()
     {
         var product = TestDataMother.CreateProduct(12, 1);
         _productRepo.Setup(x => x.GetByIdAsync(12)).ReturnsAsync(product);
@@ -232,8 +174,6 @@ public class ProductServiceTests
 
         result.Success.Should().BeTrue();
         _productRepo.Verify(x => x.UpdateAsync(product), Times.Once);
-        _cacheService.Verify(x => x.RemoveAsync(CacheKeyGenerator.Product(12)), Times.Once);
-        _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.ProductVersionKey()), Times.Once);
         _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.CategoryVersionKey()), Times.Once);
     }
 
@@ -267,7 +207,7 @@ public class ProductServiceTests
     }
 
     [Fact]
-    public async Task DeleteAsync_WhenValid_ShouldSoftDeleteAndInvalidateProductAndCategoryCaches()
+    public async Task DeleteAsync_WhenValid_ShouldSoftDeleteAndBumpCategoryVersionOnly()
     {
         var product = TestDataMother.CreateProduct(8, 2);
         _productRepo.Setup(x => x.GetByIdAsync(8)).ReturnsAsync(product);
@@ -277,8 +217,6 @@ public class ProductServiceTests
         result.Success.Should().BeTrue();
         product.IsDeleted.Should().BeTrue();
         _productRepo.Verify(x => x.SaveChangesAsync(), Times.Once);
-        _cacheService.Verify(x => x.RemoveAsync(CacheKeyGenerator.Product(8)), Times.Once);
-        _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.ProductVersionKey()), Times.Once);
         _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.CategoryVersionKey()), Times.Once);
     }
 

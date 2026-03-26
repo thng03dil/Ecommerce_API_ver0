@@ -19,12 +19,6 @@ public class PermissionAuthorizationHandler : AuthorizationHandler<PermissionReq
         AuthorizationHandlerContext context,
         PermissionRequirement requirement)
     {
-        if (context.User.IsInRole("Admin"))
-        {
-            context.Succeed(requirement);
-            return;
-        }
-
         var idClaim = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (!int.TryParse(idClaim, out var userId) || userId <= 0)
             return;

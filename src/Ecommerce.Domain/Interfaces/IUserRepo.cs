@@ -23,9 +23,6 @@ namespace Ecommerce.Domain.Interfaces
         /// <summary>User chưa xóa mềm đang gán role này.</summary>
         Task<IReadOnlyList<int>> GetActiveUserIdsByRoleIdAsync(int roleId, CancellationToken cancellationToken = default);
 
-        /// <summary>User chưa xóa mềm có role đang gắn permissionId (qua RolePermissions).</summary>
-        Task<IReadOnlyList<int>> GetActiveUserIdsHavingPermissionAsync(int permissionId, CancellationToken cancellationToken = default);
-
         Task AddAsync(User user);
         Task SaveChangesAsync();
     }

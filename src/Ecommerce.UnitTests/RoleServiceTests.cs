@@ -20,7 +20,6 @@ public class RoleServiceTests
     private readonly Mock<IUserRepo> _userRepo = new();
     private readonly Mock<ICacheService> _cacheService = new();
     private readonly Mock<IUnitOfWork> _unitOfWork = new();
-    private readonly Mock<IUserSessionInvalidationService> _sessionInvalidation = new();
     private readonly RoleService _sut;
 
     public RoleServiceTests()
@@ -30,8 +29,7 @@ public class RoleServiceTests
             _permissionRepo.Object,
             _userRepo.Object,
             _cacheService.Object,
-            _unitOfWork.Object,
-            _sessionInvalidation.Object);
+            _unitOfWork.Object);
     }
 
     #region GetAllAsync
@@ -248,6 +246,18 @@ public class RoleServiceTests
         _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.RoleVersionKey()), Times.Once);
     }
 
+    [Fact]
+    public async Task UpdateAsync_WhenRenamingBuiltInAdmin_ShouldThrowBusinessException()
+    {
+        var role = new Role { Id = 1, Name = "Admin", Description = "x" };
+        _roleRepo.Setup(x => x.GetByIdAsync(1)).ReturnsAsync(role);
+
+        var act = () => _sut.UpdateAsync(1, new RoleUpdateDto { Name = "SuperAdmin", Description = "x" });
+
+        (await act.Should().ThrowAsync<BusinessException>()).Which.ErrorCode.Should()
+            .Be("Cannot rename the built-in Admin or User role.");
+    }
+
     #endregion
 
     #region AssignPermissionsAsync
@@ -276,7 +286,7 @@ public class RoleServiceTests
     }
 
     [Fact]
-    public async Task AssignPermissionsAsync_WhenValid_ShouldUpdateCachesInvalidateSessions()
+    public async Task AssignPermissionsAsync_WhenValid_ShouldUpdateCachesWithoutSessionInvalidation()
     {
         var roleId = 1;
         var permissionIds = new List<int> { 10, 11 };
@@ -284,7 +294,6 @@ public class RoleServiceTests
 
         _roleRepo.Setup(x => x.GetByIdWithPermissionsAsync(roleId)).ReturnsAsync(role);
         _permissionRepo.Setup(x => x.AllIdsExistAsync(permissionIds)).ReturnsAsync(true);
-        _userRepo.Setup(x => x.GetActiveUserIdsByRoleIdAsync(roleId)).ReturnsAsync(new List<int> { 101, 102 });
 
         var result = await _sut.AssignPermissionsAsync(new AssignPermissionsDto { RoleId = roleId, PermissionIds = permissionIds });
 
@@ -293,8 +302,37 @@ public class RoleServiceTests
         _cacheService.Verify(x => x.RemoveAsync(CacheKeyGenerator.Role(roleId)), Times.Once);
         _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.RoleVersionKey()), Times.Once);
         _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.PermissionVersionKey()), Times.Once);
-        _sessionInvalidation.Verify(x => x.InvalidateAsync(101, It.IsAny<CancellationToken>()), Times.Once);
-        _sessionInvalidation.Verify(x => x.InvalidateAsync(102, It.IsAny<CancellationToken>()), Times.Once);
+        _userRepo.Verify(x => x.GetActiveUserIdsByRoleIdAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task AssignPermissionsAsync_WhenUserRoleAndExtraPermission_ShouldThrowBusinessException()
+    {
+        var role = new Role { Id = 2, Name = "User", RolePermissions = new List<RolePermission>() };
+        _roleRepo.Setup(x => x.GetByIdWithPermissionsAsync(2)).ReturnsAsync(role);
+        _permissionRepo.Setup(x => x.AllIdsExistAsync(It.IsAny<List<int>>())).ReturnsAsync(true);
+        _permissionRepo.Setup(x => x.GetByIdAsync(99)).ReturnsAsync(new Permission { Id = 99, Name = "role.delete" });
+
+        var act = () => _sut.AssignPermissionsAsync(new AssignPermissionsDto { RoleId = 2, PermissionIds = new List<int> { 99 } });
+
+        (await act.Should().ThrowAsync<BusinessException>()).Which.ErrorCode.Should()
+            .Be("The User role may only be assigned product.read and category.read permissions.");
+    }
+
+    [Fact]
+    public async Task AssignPermissionsAsync_WhenUserRoleAndAllowedPermissions_ShouldSucceed()
+    {
+        var role = new Role { Id = 2, Name = "User", RolePermissions = new List<RolePermission>() };
+        var ids = new List<int> { 1, 5 };
+        _roleRepo.Setup(x => x.GetByIdWithPermissionsAsync(2)).ReturnsAsync(role);
+        _permissionRepo.Setup(x => x.AllIdsExistAsync(ids)).ReturnsAsync(true);
+        _permissionRepo.Setup(x => x.GetByIdAsync(1)).ReturnsAsync(new Permission { Id = 1, Name = "product.read" });
+        _permissionRepo.Setup(x => x.GetByIdAsync(5)).ReturnsAsync(new Permission { Id = 5, Name = "category.read" });
+
+        var result = await _sut.AssignPermissionsAsync(new AssignPermissionsDto { RoleId = 2, PermissionIds = ids });
+
+        result.Success.Should().BeTrue();
+        _roleRepo.Verify(x => x.UpdateAsync(role), Times.Once);
     }
 
     #endregion
@@ -312,38 +350,39 @@ public class RoleServiceTests
     }
 
     [Fact]
-    public async Task DeleteAsync_WhenSystemRole_ShouldThrowBusinessException()
+    public async Task DeleteAsync_WhenBuiltInAdminName_ShouldThrowBusinessException()
     {
-        var role = new Role { Id = 3, IsSystem = true, Name = "Admin" };
+        var role = new Role { Id = 3, Name = "Admin" };
         _roleRepo.Setup(x => x.GetByIdAsync(3)).ReturnsAsync(role);
 
         var act = () => _sut.DeleteAsync(3);
 
-        (await act.Should().ThrowAsync<BusinessException>()).Which.ErrorCode.Should().Be("Cannot delete system role");
+        (await act.Should().ThrowAsync<BusinessException>()).Which.ErrorCode.Should()
+            .Be("Cannot delete the built-in Admin or User role.");
     }
 
     [Fact]
-    public async Task DeleteAsync_WhenDefaultUserRole_ShouldThrowBusinessException()
+    public async Task DeleteAsync_WhenBuiltInUserName_ShouldThrowBeforeDefaultRoleLookup()
     {
         var roleId = 2;
-        var defaultRole = new Role { Id = roleId, Name = "User", IsSystem = false };
-        _roleRepo.Setup(x => x.GetByIdAsync(roleId)).ReturnsAsync(defaultRole);
-        _roleRepo.Setup(x => x.GetByNameRoleAsync("User")).ReturnsAsync(defaultRole);
+        var role = new Role { Id = roleId, Name = "User" };
+        _roleRepo.Setup(x => x.GetByIdAsync(roleId)).ReturnsAsync(role);
 
         var act = () => _sut.DeleteAsync(roleId);
 
         (await act.Should().ThrowAsync<BusinessException>()).Which.ErrorCode.Should()
-            .Be("Cannot delete the default User role.");
+            .Be("Cannot delete the built-in Admin or User role.");
+        _roleRepo.Verify(x => x.GetByNameRoleAsync("User"), Times.Never);
     }
 
     [Fact]
-    public async Task DeleteAsync_WhenValid_ShouldRunTransactionInvalidateSessionsAndClearUserCaches()
+    public async Task DeleteAsync_WhenValid_ShouldRunTransactionAndClearUserCachesWithoutSessionInvalidation()
     {
         var roleId = 5;
         var defaultRoleId = 1;
         var affectedUsers = new List<int> { 500, 501 };
 
-        var roleToDelete = new Role { Id = roleId, Name = "Temporary", IsSystem = false };
+        var roleToDelete = new Role { Id = roleId, Name = "Temporary" };
         var defaultRole = new Role { Id = defaultRoleId, Name = "User" };
 
         _roleRepo.Setup(x => x.GetByIdAsync(roleId)).ReturnsAsync(roleToDelete);
@@ -364,8 +403,6 @@ public class RoleServiceTests
         _cacheService.Verify(x => x.RemoveAsync(CacheKeyGenerator.Role(roleId)), Times.Once);
         _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.RoleVersionKey()), Times.Once);
         _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.PermissionVersionKey()), Times.Once);
-        _sessionInvalidation.Verify(x => x.InvalidateAsync(500, It.IsAny<CancellationToken>()), Times.Once);
-        _sessionInvalidation.Verify(x => x.InvalidateAsync(501, It.IsAny<CancellationToken>()), Times.Once);
         _cacheService.Verify(x => x.RemoveAsync(CacheKeyGenerator.User(500)), Times.Once);
         _cacheService.Verify(x => x.RemoveAsync(CacheKeyGenerator.User(501)), Times.Once);
     }

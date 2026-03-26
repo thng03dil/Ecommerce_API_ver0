@@ -115,7 +115,6 @@ namespace Ecommerce.Application.Services.Implementations
                     Entity = entity,
                     Action = action,
                     Name = name,
-                    IsSystem = false,
                     Description = dto.Description?.Trim() ?? string.Empty,
                     CreatedAt = DateTime.UtcNow
                 };
@@ -123,6 +122,7 @@ namespace Ecommerce.Application.Services.Implementations
                 await _permissionRepo.SaveChangesAsync();
 
                 var adminRole = await _roleRepo.GetByNameRoleAsync("Admin");
+                var adminRolePermissionsChanged = false;
                 if (adminRole != null)
                 {
                     var alreadyAssigned = await _permissionRepo.RolePermissionExistsAsync(adminRole.Id, permission.Id);
@@ -133,11 +133,13 @@ namespace Ecommerce.Application.Services.Implementations
                             RoleId = adminRole.Id,
                             PermissionId = permission.Id
                         });
+                        adminRolePermissionsChanged = true;
                     }
-
                 }
 
                 await _cacheService.IncrementAsync(CacheKeyGenerator.PermissionVersionKey());
+                if (adminRolePermissionsChanged)
+                    await _cacheService.IncrementAsync(CacheKeyGenerator.RoleVersionKey());
 
                 var item = MapToResponseDto(permission);
                 return ApiResponse<PermissionResponseDto>.SuccessResponse(
@@ -171,7 +173,6 @@ namespace Ecommerce.Application.Services.Implementations
                 permission.Entity = entity;
                 permission.Action = action;
                 permission.Name = $"{entity}.{action}";
-                permission.IsSystem = dto.IsSystem;
                 permission.Description = dto.Description?.Trim() ?? string.Empty;
                 permission.UpdatedAt = DateTime.UtcNow;
 
@@ -179,6 +180,7 @@ namespace Ecommerce.Application.Services.Implementations
 
                 await _cacheService.RemoveAsync(CacheKeyGenerator.Permission(id));
                 await _cacheService.IncrementAsync(CacheKeyGenerator.PermissionVersionKey());
+                await _cacheService.IncrementAsync(CacheKeyGenerator.RoleVersionKey());
 
                 var item = MapToResponseDto(permission);
                 return ApiResponse<PermissionResponseDto>.SuccessResponse(
@@ -201,21 +203,14 @@ namespace Ecommerce.Application.Services.Implementations
 
                 if (permission == null) throw new NotFoundException("Permission not found");
 
-
-                if (permission.IsSystem)
-                    throw new BusinessException("Do not delete system permission");
-
-                if (await _permissionRepo.IsAssignedToAnyNonAdminRoleAsync(permission.Id))
-                    throw new BusinessException("Permission is assigned by role user. Please remove permissions before deleting");
+                await _permissionRepo.HardDeleteRolePermissionsByPermissionIdAsync(permission.Id);
 
                 permission.IsDeleted = true;
-
                 await _permissionRepo.SaveChangesAsync();
-
-                await _permissionRepo.HardDeleteRolePermissionsByPermissionIdAsync(permission.Id);
 
                 await _cacheService.RemoveAsync(CacheKeyGenerator.Permission(id));
                 await _cacheService.IncrementAsync(CacheKeyGenerator.PermissionVersionKey());
+                await _cacheService.IncrementAsync(CacheKeyGenerator.RoleVersionKey());
 
                 var item = MapToResponseDto(permission);
                 return ApiResponse<PermissionResponseDto>.SuccessResponse(
@@ -235,7 +230,6 @@ namespace Ecommerce.Application.Services.Implementations
             Entity = p.Entity,
             Action = p.Action,
             Description = p.Description,
-            IsSystem = p.IsSystem,
             CreatedAt = p.CreatedAt,
             UpdatedAt = p.UpdatedAt
         };

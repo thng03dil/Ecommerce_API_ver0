@@ -1,4 +1,5 @@
 using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using Ecommerce.Domain.Common.Settings;
 using Ecommerce.Domain.Entities;
 using Ecommerce.Infrastructure.SecurityHelpers;
@@ -46,17 +47,19 @@ public class JwtServiceTests
     }
 
     [Fact]
-    public void GenerateAccessToken_RoleNull_ShouldThrowInvalidOperationException()
+    public void GenerateAccessToken_RoleNull_ShouldStillIssueToken()
     {
-        // Arrange
         var sut = new JwtService(TestDataMother.CreateJwtOptions(_settings), NullLogger<JwtService>.Instance);
         var user = new User { Id = 1, Email = "a@b.com", RoleId = 1, Role = null! };
 
-        // Act
-        var act = () => sut.GenerateAccessToken(user, Guid.NewGuid(), 1, "fp");
+        var token = sut.GenerateAccessToken(user, Guid.NewGuid(), 1, "fp");
 
-        // Assert
-        act.Should().Throw<InvalidOperationException>();
+        var handler = new JwtSecurityTokenHandler();
+        handler.CanReadToken(token).Should().BeTrue();
+        var jwt = handler.ReadJwtToken(token);
+        jwt.Subject.Should().Be("1");
+        jwt.Claims.Should().NotContain(c => c.Type == ClaimTypes.Role);
+        jwt.Claims.Should().NotContain(c => c.Type == ClaimTypes.Email);
     }
 
     [Fact]
@@ -80,8 +83,10 @@ public class JwtServiceTests
         jwt.Claims.Should().Contain(c => c.Type == "sid" && c.Value == sid.ToString());
         jwt.Claims.Should().Contain(c => c.Type == "sv" && c.Value == "9");
         jwt.Claims.Should().Contain(c => c.Type == "fp" && c.Value == "fphash");
-        jwt.Claims.Should().Contain(c => c.Type == System.Security.Claims.ClaimTypes.Role && c.Value == "Admin");
+        jwt.Claims.Should().NotContain(c => c.Type == ClaimTypes.Role);
+        jwt.Claims.Should().NotContain(c => c.Type == ClaimTypes.Email);
         jwt.Claims.Should().NotContain(c => c.Type == "permissions");
+        jwt.Claims.Should().Contain(c => c.Type == JwtRegisteredClaimNames.Jti);
     }
 
     [Fact]

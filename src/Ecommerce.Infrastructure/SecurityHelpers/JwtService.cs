@@ -37,21 +37,18 @@ namespace Ecommerce.Infrastructure.SecurityHelpers
             int sessionVersion,
             string fingerprint)
         {
-            if (user.Role == null)
-                throw new InvalidOperationException("User Role is not loaded when generating token. Please ensure Role and Permissions are included when fetching the User from the database.");
+            ArgumentNullException.ThrowIfNull(user);
+            if (user.Id <= 0)
+                throw new InvalidOperationException("User Id must be positive to generate an access token.");
 
             var claims = new List<Claim>
             {
-                // for  JWT standard claims
                 new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),//jwtid
-                // for .NET identity
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim(ClaimTypes.Email, user.Email),
-                new Claim(ClaimTypes.Role, user.Role.Name),
-                new Claim("sid", sessionId.ToString()), // sesiogn id
-                new Claim("sv", sessionVersion.ToString()), //vesion session
-                new Claim("fp", fingerprint ?? string.Empty),  // fingerprint hash from clientIP + deviceID
+                new Claim("sid", sessionId.ToString()),
+                new Claim("sv", sessionVersion.ToString()),
+                new Claim("fp", fingerprint ?? string.Empty),
             };
 
             var key = new SymmetricSecurityKey(_keyBytes);

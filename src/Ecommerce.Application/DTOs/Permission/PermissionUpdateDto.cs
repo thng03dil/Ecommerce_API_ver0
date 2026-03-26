@@ -19,8 +19,6 @@ namespace Ecommerce.Application.DTOs.Permission
         [StringLength(50, ErrorMessage = "Action cannot exceed 50 characters")]
         public string Action { get; set; } = string.Empty;
 
-        public bool IsSystem { get; set; } = false;
-
         [StringLength(200, ErrorMessage = "Description cannot exceed 200 characters")]
         public string? Description { get; set; }
     }

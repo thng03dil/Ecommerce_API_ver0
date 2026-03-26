@@ -6,7 +6,7 @@ using System.Text;
 
 namespace Ecommerce.API.Extensions
 {
-    public static class AutheticationExtensions
+    public static class AuthenticationExtensions
     {
         public static IServiceCollection AddAuthenticationServices(
         this IServiceCollection services,

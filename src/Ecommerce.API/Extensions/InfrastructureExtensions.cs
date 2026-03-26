@@ -1,5 +1,6 @@
 using Ecommerce.Application.Services.Interfaces;
 using Ecommerce.Domain.Interfaces;
+using Ecommerce.Infrastructure.Caching;
 using Ecommerce.Infrastructure.Data;
 using Ecommerce.Infrastructure.RedisCaching;
 using Ecommerce.Infrastructure.Repositories;
@@ -8,101 +9,126 @@ using Microsoft.EntityFrameworkCore;
 using Serilog;
 using StackExchange.Redis;
 
-namespace Ecommerce.API.Extensions
+namespace Ecommerce.API.Extensions;
+
+public static class InfrastructureExtensions
 {
-    public static class InfrastructureExtensions
+    public static IServiceCollection AddInfrastructure(
+        this IServiceCollection services,
+        IConfiguration configuration)
     {
-        public static IServiceCollection AddInfrastructure(
-       this IServiceCollection services,
-       IConfiguration configuration)
-        {
-            services
+        services
             .AddDatabase(configuration)
             .AddCaching(configuration)
             .AddRepositories()
             .AddSecurity();
 
-            return services;
+        return services;
+    }
+
+    private static IServiceCollection AddDatabase(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        services.AddDbContext<AppDbContext>(options =>
+            options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
+
+        return services;
+    }
+
+    /// <summary>
+    /// Đọc <c>Caching:Provider</c> để chọn backend:
+    /// <list type="bullet">
+    ///   <item><c>None</c>  — <see cref="NoOpCacheService"/> (direct-DB, không cần Redis/memory).</item>
+    ///   <item><c>Memory</c> hoặc trống — <see cref="RedisCacheService"/> + <c>DistributedMemoryCache</c> (local dev, multiplexer null).</item>
+    ///   <item><c>Redis</c>  — <see cref="RedisCacheService"/> + StackExchange.Redis (production / có Redis server).</item>
+    /// </list>
+    /// </summary>
+    private static IServiceCollection AddCaching(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        services.AddMemoryCache();
+        var provider = (configuration["Caching:Provider"] ?? string.Empty).Trim();
+        var redisConn = (configuration["Redis:ConnectionString"] ?? string.Empty).Trim();
+        var instanceName = configuration["Redis:InstanceName"] ?? "Ecommerce:";
 
 
-
-        }
-        // ================= DATABASE =================
-        private static IServiceCollection AddDatabase(
-            this IServiceCollection services,
-            IConfiguration configuration)
-                {
-                    services.AddDbContext<AppDbContext>(options =>
-                        options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
-
-                    return services;
-        }
-
-        // ================= REDIS CONFIGURATIOGN =================
-        private static IServiceCollection AddCaching(
-            this IServiceCollection services,
-            IConfiguration configuration)
+        // TRƯỜNG HỢP 1: Tắt hoàn toàn Cache (Dùng cho Docker/Test chạy thẳng DB)
+        if (string.Equals(provider, "None", StringComparison.OrdinalIgnoreCase))
         {
-            var redisConn = configuration["Redis:ConnectionString"];
-            var instanceName = configuration["Redis:InstanceName"] ?? "Ecommerce:";
+            services.AddSingleton<ICacheService, NoOpCacheService>();
+            Log.Information("Caching:Provider=None — NoOpCacheService (direct-DB, no cache).");
+            return services;
+        }
 
-            if (!string.IsNullOrEmpty(redisConn))
+        var useRedis =
+            string.Equals(provider, "Redis", StringComparison.OrdinalIgnoreCase)
+            && !string.IsNullOrEmpty(redisConn);
+
+        // TRƯỜNG HỢP 2: Sử dụng Redis (Có L1 là Memory dự phòng)
+        if (useRedis)
+        {
+            services.AddSingleton<IConnectionMultiplexer>(_ =>
             {
-                // Register Multiplexer (Singleton) for advanced Redis ops inside RedisCacheService
-                services.AddSingleton<IConnectionMultiplexer>(sp =>
-                {
-                    var config = ConfigurationOptions.Parse(redisConn, true);
-                    config.AbortOnConnectFail = false;
-                    return ConnectionMultiplexer.Connect(config);
-                });
+                var config = ConfigurationOptions.Parse(redisConn, true);
+                config.AbortOnConnectFail = false;
+                config.ConnectTimeout = 200;  // Fast timeout để trigger L1 nhanh
+                return ConnectionMultiplexer.Connect(config);
+            });
 
-                // Register Distributed Cache
-                services.AddStackExchangeRedisCache(options =>
-                {
-                    options.Configuration = redisConn;
-                    options.InstanceName = instanceName;
-                });
-            }
-            else
-            { 
-                // Fallback : use memory cache if redis is not configured
-                services.AddDistributedMemoryCache();
-                Log.Warning("Redis ConnectionString is missing. Using MemoryCache instead.");
-            }
+            services.AddStackExchangeRedisCache(options =>
+            {
+                options.Configuration = redisConn;
+                options.InstanceName = instanceName;
+            });
 
             services.Configure<RedisCacheOptions>(o =>
             {
-                o.DistributedCacheKeyPrefix = string.IsNullOrEmpty(redisConn) ? string.Empty : instanceName;
+                o.DistributedCacheKeyPrefix = instanceName;
             });
 
             services.AddSingleton<ICacheService, RedisCacheService>();
-
+            Log.Information("Caching:Provider=Redis — StackExchange.Redis + RedisCacheService.");
             return services;
         }
-        // ================= REPOSITORY REGISTRATION =================
-        private static IServiceCollection AddRepositories(this IServiceCollection services)
+
+        // TRƯỜNG HỢP 3: Sử dụng In-Memory (Cấu hình "Memory" hoặc Fallback khi Redis thiếu ConnectionString)
+        services.AddDistributedMemoryCache();
+        services.Configure<RedisCacheOptions>(o =>
         {
-            services.AddScoped<ICategoryRepo, CategoryRepo>();
-            services.AddScoped<IProductRepo, ProductRepo>();
-            services.AddScoped<IUserRepo, UserRepo>();
-            services.AddScoped<IRefreshTokenRepo, RefreshTokenRepo>();
-            services.AddScoped<IRoleRepo, RoleRepo>();
-            services.AddScoped<IPermissionRepo, PermissionRepo>();
-            services.AddScoped<IOrderRepo, OrderRepo>();
-            services.AddScoped<IUnitOfWork, UnitOfWork>();
+            o.DistributedCacheKeyPrefix = string.Empty;
+        });
+        services.AddSingleton<ICacheService, RedisCacheService>();
 
-            return services;
-        }
+        if (string.Equals(provider, "Redis", StringComparison.OrdinalIgnoreCase))
+            Log.Warning("Caching:Provider=Redis nhưng Redis:ConnectionString trống — In-Memory");
+        else
+            Log.Information("Caching:Provider=Memory — In-Memory Mode enabled.");
 
-        private static IServiceCollection AddSecurity( this IServiceCollection services)
-        {
-            services.AddScoped<IPasswordHasher, PasswordHasher>();
-            services.AddScoped<ISecurityFingerprintHelper, SecurityFingerprintHelper>();
+        return services;
+    }
 
-            // JWT implementation 
-            services.AddScoped<IJwtService, JwtService>();
+    private static IServiceCollection AddRepositories(this IServiceCollection services)
+    {
+        services.AddScoped<ICategoryRepo, CategoryRepo>();
+        services.AddScoped<IProductRepo, ProductRepo>();
+        services.AddScoped<IUserRepo, UserRepo>();
+        services.AddScoped<IRefreshTokenRepo, RefreshTokenRepo>();
+        services.AddScoped<IRoleRepo, RoleRepo>();
+        services.AddScoped<IPermissionRepo, PermissionRepo>();
+        services.AddScoped<IOrderRepo, OrderRepo>();
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
 
-            return services;
-        }
+        return services;
+    }
+
+    private static IServiceCollection AddSecurity(this IServiceCollection services)
+    {
+        services.AddScoped<IPasswordHasher, PasswordHasher>();
+        services.AddScoped<ISecurityFingerprintHelper, SecurityFingerprintHelper>();
+        services.AddScoped<IJwtService, JwtService>();
+
+        return services;
     }
 }

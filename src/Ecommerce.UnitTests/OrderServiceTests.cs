@@ -46,12 +46,11 @@ public class OrderServiceTests
         var result = await _sut.PlaceOrderAsync(5, dto);
 
         result.Success.Should().BeFalse();
-        _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.ProductVersionKey()), Times.Never);
         _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.CategoryVersionKey()), Times.Never);
     }
 
     [Fact]
-    public async Task PlaceOrderAsync_WhenRepoSucceeds_ShouldBumpProductAndCategoryVersion()
+    public async Task PlaceOrderAsync_WhenRepoSucceeds_ShouldBumpCategoryVersionOnly()
     {
         var created = new DateTime(2026, 3, 24, 12, 0, 0, DateTimeKind.Utc);
         var dto = new CreateOrderDto { Items = [new OrderLineDto { ProductId = 10, Quantity = 1 }] };
@@ -65,7 +64,6 @@ public class OrderServiceTests
         result.Data!.Id.Should().Be(99);
         result.Data.TotalAmount.Should().Be(25.5m);
         result.Data.CreatedAt.Should().Be(created);
-        _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.ProductVersionKey()), Times.Once);
         _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.CategoryVersionKey()), Times.Once);
     }
 }

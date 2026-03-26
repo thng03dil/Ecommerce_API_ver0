@@ -1,4 +1,4 @@
-﻿namespace Ecommerce.Application.DTOs.ProductDtos
+namespace Ecommerce.Application.DTOs.ProductDtos
 {
     public class ProductResponseDto
     {
@@ -10,9 +10,8 @@
         public decimal Price { get; set; }
         public string? Description { get; set; }
         public int Stock { get; set; }
-        
+
         public DateTime CreateAt { get; set; } = DateTime.UtcNow;
         public DateTime? UpdateAt { get; set; }
     }
 }
-  

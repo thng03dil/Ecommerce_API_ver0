@@ -6,13 +6,6 @@ namespace Ecommerce.Application.Common.Caching
 {
     public static class CacheKeyGenerator
     {
-        public static string Product(int id) => $"product:{id}";
-        public static string ProductVersionKey() => "product:version";
-        public static string ProductList(string version, int page, int size, string filterHash) =>
-            string.IsNullOrEmpty(filterHash)
-                ? $"product:list:v{version}:{page}:{size}"
-                : $"product:list:v{version}:{page}:{size}:{filterHash}";
-
         public static string Category(int id) => $"category:{id}";
         public static string CategoryVersionKey() => "category:version";
         public static string CategoryList(string version, int page, int size, string filterHash) =>
@@ -20,10 +13,8 @@ namespace Ecommerce.Application.Common.Caching
                 ? $"category:list:v{version}:{page}:{size}"
                 : $"category:list:v{version}:{page}:{size}:{filterHash}";
 
+        /// <summary>Optional eviction key (e.g. after role reassignment); user list/detail are not cached.</summary>
         public static string User(int id) => $"user:{id}";
-        public static string UserVersionKey() => "user:version";
-        public static string UserList(string version, int page, int size) =>
-            $"user:list:v{version}:{page}:{size}";
 
         public static string Role(int id) => $"role:{id}";
         public static string RoleVersionKey() => "role:version";
@@ -35,18 +26,8 @@ namespace Ecommerce.Application.Common.Caching
         public static string PermissionList(string version, int page, int size) =>
             $"permission:list:v{version}:{page}:{size}";
 
-        public static string GetEntityKey<T>(object id) => $"{typeof(T).Name}:{id}";
-
-        public static string GetListKey<T>() => $"{typeof(T).Name}:List";
-
-        public static string BlacklistToken(string tokenHash)
-        { 
-        return $"Blacklist:Token:{tokenHash}";
-        }
-        public static string UserTokenVersion(int userId)
-         { 
-               return $"User:TokenVersion:{userId}";
-        }
+        public static string BlacklistToken(string tokenHash) =>
+            $"Blacklist:Token:{tokenHash}";
 
         /// <summary>Key cache session; sessionVersion khớp User.SessionVersion (JWT claim sv).</summary>
         public static string AuthSession(int userId, int sessionVersion) =>

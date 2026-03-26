@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Options;
 
 namespace Ecommerce.Application.Authorization
@@ -12,17 +12,27 @@ namespace Ecommerce.Application.Authorization
 
         public override async Task<AuthorizationPolicy?> GetPolicyAsync(string policyName)
         {
-            if (policyName.StartsWith("Permission:"))
+            if (policyName.StartsWith("Permission:", StringComparison.Ordinal))
             {
-                var permission = policyName.Substring("Permission:".Length);
-
-                var policy = new AuthorizationPolicyBuilder();
-                policy.AddRequirements(new PermissionRequirement(permission));
-
-                return policy.Build();
+                var permission = policyName["Permission:".Length..];
+                return BuildPermissionPolicy(permission);
             }
 
-            return await base.GetPolicyAsync(policyName);
+            var registered = await base.GetPolicyAsync(policyName);
+            if (registered != null)
+                return registered;
+
+            if (PermissionPolicyNames.IsPermissionStyle(policyName))
+                return BuildPermissionPolicy(policyName);
+
+            return null;
+        }
+
+        private static AuthorizationPolicy BuildPermissionPolicy(string permission)
+        {
+            var policy = new AuthorizationPolicyBuilder();
+            policy.AddRequirements(new PermissionRequirement(permission));
+            return policy.Build();
         }
     }
 }

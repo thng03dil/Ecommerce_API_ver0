@@ -14,6 +14,11 @@ namespace Ecommerce.Application.Services.Implementations
     public class RoleService : IRoleService
     {
         private const string DefaultUserRoleName = "User";
+        private const string AdminRoleName = "Admin";
+
+        private static bool IsBuiltInRoleName(string name) =>
+            string.Equals(name, AdminRoleName, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(name, DefaultUserRoleName, StringComparison.OrdinalIgnoreCase);
         private static readonly TimeSpan RoleCacheTtl = TimeSpan.FromMinutes(30);
         private static readonly SemaphoreSlim _listLoadLock = new(1, 1);
         private static readonly SemaphoreSlim _itemLoadLock = new(1, 1);
@@ -24,22 +29,19 @@ namespace Ecommerce.Application.Services.Implementations
         private readonly IUserRepo _userRepo;
         private readonly ICacheService _cacheService;
         private readonly IUnitOfWork _unitOfWork;
-        private readonly IUserSessionInvalidationService _sessionInvalidation;
 
         public RoleService(
             IRoleRepo roleRepo,
             IPermissionRepo permissionRepo,
             IUserRepo userRepo,
             ICacheService cacheService,
-            IUnitOfWork unitOfWork,
-            IUserSessionInvalidationService sessionInvalidation)
+            IUnitOfWork unitOfWork)
         {
             _roleRepo = roleRepo;
             _permissionRepo = permissionRepo;
             _userRepo = userRepo;
             _cacheService = cacheService;
             _unitOfWork = unitOfWork;
-            _sessionInvalidation = sessionInvalidation;
         }
 
         public async Task<ApiResponse<PagedResponse<RoleResponseDto>>> GetAllAsync(PaginationDto pagedto)
@@ -173,6 +175,10 @@ namespace Ecommerce.Application.Services.Implementations
                 var role = await _roleRepo.GetByIdAsync(id);
                 if (role == null) throw new NotFoundException("Role not found");
 
+                if (IsBuiltInRoleName(role.Name)
+                    && !string.Equals(role.Name, dto.Name, StringComparison.OrdinalIgnoreCase))
+                    throw new BusinessException("Cannot rename the built-in Admin or User role.");
+
                 if (!role.Name.Equals(dto.Name, StringComparison.OrdinalIgnoreCase))
                 {
                     if (await _roleRepo.ExistsByNameAsync(dto.Name))
@@ -213,6 +219,22 @@ namespace Ecommerce.Application.Services.Implementations
                     throw new BusinessException("One or more Permission IDs do not exist.");
                 }
 
+                if (string.Equals(role.Name, DefaultUserRoleName, StringComparison.OrdinalIgnoreCase))
+                {
+                    var allowed = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        "product.read",
+                        "category.read"
+                    };
+                    foreach (var pId in dto.PermissionIds.Distinct())
+                    {
+                        var perm = await _permissionRepo.GetByIdAsync(pId);
+                        if (perm == null || !allowed.Contains(perm.Name))
+                            throw new BusinessException(
+                                "The User role may only be assigned product.read and category.read permissions.");
+                    }
+                }
+
                 role.RolePermissions.Clear();
 
                 var uniquePermissionIds = dto.PermissionIds.Distinct();
@@ -232,10 +254,6 @@ namespace Ecommerce.Application.Services.Implementations
                 await _cacheService.IncrementAsync(CacheKeyGenerator.RoleVersionKey());
                 await _cacheService.IncrementAsync(CacheKeyGenerator.PermissionVersionKey());
 
-                var userIdsOnRole = await _userRepo.GetActiveUserIdsByRoleIdAsync(dto.RoleId);
-                foreach (var uid in userIdsOnRole)
-                    await _sessionInvalidation.InvalidateAsync(uid);
-
                 return ApiResponse<bool>.SuccessResponse(true, "Permissions assigned successfully");
             }
             finally { 
@@ -247,8 +265,8 @@ namespace Ecommerce.Application.Services.Implementations
             var role = await _roleRepo.GetByIdAsync(id);
             if (role == null) throw new NotFoundException("Role not found");
 
-            if (role.IsSystem)
-                throw new BusinessException("Cannot delete system role");
+            if (IsBuiltInRoleName(role.Name))
+                throw new BusinessException("Cannot delete the built-in Admin or User role.");
 
             var defaultUserRole = await _roleRepo.GetByNameRoleAsync(DefaultUserRoleName);
             if (defaultUserRole == null)
@@ -270,10 +288,7 @@ namespace Ecommerce.Application.Services.Implementations
             await _cacheService.IncrementAsync(CacheKeyGenerator.PermissionVersionKey());
 
             foreach (var userId in affectedUserIds)
-            {
-                await _sessionInvalidation.InvalidateAsync(userId);
                 await _cacheService.RemoveAsync(CacheKeyGenerator.User(userId));
-            }
 
             return ApiResponse<bool>.SuccessResponse(true, "Role deleted successfully");
         }

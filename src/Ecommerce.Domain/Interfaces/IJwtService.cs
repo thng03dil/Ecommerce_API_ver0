@@ -5,6 +5,7 @@ namespace Ecommerce.Domain.Interfaces
 {
     public interface IJwtService
     {
+        /// <summary>Identity claims: user id, jti, session (sid/sv/fp). Email and role are not embedded.</summary>
         string GenerateAccessToken(
             User user,
             Guid sessionId,

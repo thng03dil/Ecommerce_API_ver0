@@ -3,6 +3,7 @@ using Ecommerce.Application.Common.Pagination;
 using Ecommerce.Application.DTOs.CategoryDtos;
 using Ecommerce.Application.Services.Interfaces;
 using Ecommerce.Domain.Common.Filters;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 
@@ -18,7 +19,7 @@ namespace Ecommerce.API.Controllers
             _service = service;
         }
 
-        [Permission("category.read")]
+        [AllowAnonymous]
         [HttpGet]
         public async Task<IActionResult> GetAll([FromQuery] CategoryFilterDto filter , [FromQuery] PaginationDto pagination)
         {
@@ -26,7 +27,7 @@ namespace Ecommerce.API.Controllers
             return OkResponse(result);
         }
 
-        [Permission("category.read")]
+        [AllowAnonymous]
         [HttpGet("{id}")]
         public async Task<IActionResult> Get(int id)
         {

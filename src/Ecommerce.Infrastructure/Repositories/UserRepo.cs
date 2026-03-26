@@ -105,17 +105,6 @@ namespace Ecommerce.Infrastructure.Repositories
                 .ToListAsync(cancellationToken);
         }
 
-        public async Task<IReadOnlyList<int>> GetActiveUserIdsHavingPermissionAsync(int permissionId, CancellationToken cancellationToken = default)
-        {
-            return await _context.Users
-                .AsNoTracking()
-                .Where(u => !u.IsDeleted &&
-                    _context.RolePermissions.Any(rp => rp.RoleId == u.RoleId && rp.PermissionId == permissionId))
-                .Select(u => u.Id)
-                .Distinct()
-                .ToListAsync(cancellationToken);
-        }
-
         public async Task AddAsync(User user)
         {
             await _context.Users.AddAsync(user);
