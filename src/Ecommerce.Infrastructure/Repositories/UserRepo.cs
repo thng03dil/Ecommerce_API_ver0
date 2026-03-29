@@ -65,10 +65,27 @@ namespace Ecommerce.Infrastructure.Repositories
                 .Select(x => new UserAuthState(
                     x.SessionVersion,
                     x.CurrentSessionId,
-                    x.LastLoginIpHash,
-                    x.LastDeviceId,
-                    x.LastFingerprintHash))
+                    x.LastFingerprintHash,
+                    x.RefreshTokenHash,
+                    x.RefreshTokenExpiresAtUtc))
                 .FirstOrDefaultAsync();
+        }
+
+        public async Task<(int RoleId, string RoleName)?> GetRoleContextForAuthAsync(
+            int userId,
+            CancellationToken cancellationToken = default)
+        {
+            var row = await _context.Users
+                .AsNoTracking()
+                .Where(u => u.Id == userId && !u.IsDeleted)
+                .Join(
+                    _context.Roles.Where(r => !r.IsDeleted),
+                    u => u.RoleId,
+                    r => r.Id,
+                    (u, r) => new { r.Id, r.Name })
+                .FirstOrDefaultAsync(cancellationToken);
+
+            return row == null ? null : (row.Id, row.Name);
         }
         public async Task<User?> GetByEmailAsync(string email)
         {
@@ -111,7 +128,12 @@ namespace Ecommerce.Infrastructure.Repositories
             await _context.SaveChangesAsync();
 
         }
-
+        public async Task UpdateAsync(User user)
+        {
+            user.UpdatedAt = DateTime.UtcNow;
+            _context.Users.Update(user);
+            await Task.CompletedTask;
+        }
 
         public async Task SaveChangesAsync()
         {

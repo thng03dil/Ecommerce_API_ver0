@@ -12,73 +12,59 @@ namespace Ecommerce.UnitTests;
 
 public class UserSessionInvalidationServiceTests
 {
-    private readonly Mock<IRefreshTokenRepo> _refreshTokenRepo;
     private readonly Mock<IUserRepo> _userRepo;
     private readonly Mock<ICacheService> _cacheService;
     private readonly UserSessionInvalidationService _sut;
 
     public UserSessionInvalidationServiceTests()
     {
-        _refreshTokenRepo = new Mock<IRefreshTokenRepo>(MockBehavior.Loose);
         _userRepo = new Mock<IUserRepo>(MockBehavior.Loose);
         _cacheService = new Mock<ICacheService>(MockBehavior.Loose);
-        _sut = new UserSessionInvalidationService(_refreshTokenRepo.Object, _userRepo.Object, _cacheService.Object);
+        _sut = new UserSessionInvalidationService(_userRepo.Object, _cacheService.Object);
     }
 
     [Fact]
-    public async Task InvalidateAsync_UserNotFound_ShouldRevokeWithoutSaveChanges()
+    public async Task InvalidateAsync_UserNotFound_ShouldNotSaveChanges()
     {
-        // Arrange
         var userId = 60101;
         _userRepo.Setup(x => x.GetByIdForUpdateAsync(userId)).ReturnsAsync((User?)null);
 
-        // Act
         await _sut.InvalidateAsync(userId);
 
-        // Assert
-        _refreshTokenRepo.Verify(x => x.RevokeAllForUserAsync(userId), Times.Once);
         _userRepo.Verify(x => x.SaveChangesAsync(), Times.Never);
     }
 
     [Fact]
-    public async Task InvalidateAsync_UserExists_ShouldRevokeSaveAndRemoveCache()
+    public async Task InvalidateAsync_UserExists_ShouldSaveAndRemoveCache()
     {
-        // Arrange
         var userId = 60102;
         var oldSv = 7;
         var user = TestDataMother.CreateUser(userId, sessionVersion: oldSv, currentSessionId: Guid.NewGuid());
         _userRepo.Setup(x => x.GetByIdForUpdateAsync(userId)).ReturnsAsync(user);
 
-        // Act
         await _sut.InvalidateAsync(userId);
 
-        // Assert
         user.SessionVersion.Should().Be(oldSv + 1);
         _userRepo.Verify(x => x.SaveChangesAsync(), Times.Once);
-        _cacheService.Verify(
-            x => x.RemoveByPrefixAsync(CacheKeyGenerator.AuthSessionUserPrefix(userId)),
-            Times.Once);
+        _cacheService.Verify(x => x.RemoveAsync(CacheKeyGenerator.AuthSession(userId)), Times.Once);
     }
 
     [Fact]
-    public async Task InvalidateAsync_UserExists_ShouldClearSessionFields()
+    public async Task InvalidateAsync_UserExists_ShouldClearAllSessionFields()
     {
-        // Arrange
         var userId = 60103;
-        var user = TestDataMother.CreateUser(
-            userId,
-            sessionVersion: 2,
-            currentSessionId: Guid.NewGuid());
-        user.LastLoginIpHash = "ip";
+        var user = TestDataMother.CreateUser(userId, sessionVersion: 2, currentSessionId: Guid.NewGuid(),
+            refreshTokenHash: "some-hash", refreshTokenExpiresAtUtc: DateTime.UtcNow.AddDays(3));
         user.LastDeviceId = "dev";
+        user.LastFingerprintHash = "fp";
         _userRepo.Setup(x => x.GetByIdForUpdateAsync(userId)).ReturnsAsync(user);
 
-        // Act
         await _sut.InvalidateAsync(userId);
 
-        // Assert
         user.CurrentSessionId.Should().BeNull();
-        user.LastLoginIpHash.Should().BeNull();
         user.LastDeviceId.Should().BeNull();
+        user.LastFingerprintHash.Should().BeNull();
+        user.RefreshTokenHash.Should().BeNull();
+        user.RefreshTokenExpiresAtUtc.Should().BeNull();
     }
 }

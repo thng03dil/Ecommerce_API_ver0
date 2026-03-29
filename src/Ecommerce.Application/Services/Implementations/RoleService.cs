@@ -1,3 +1,4 @@
+using Ecommerce.Application.Authorization;
 using Ecommerce.Application.Common.Caching;
 using Ecommerce.Application.Common.Pagination;
 using Ecommerce.Application.Common.Responses;
@@ -29,19 +30,22 @@ namespace Ecommerce.Application.Services.Implementations
         private readonly IUserRepo _userRepo;
         private readonly ICacheService _cacheService;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IRolePermissionService _rolePermissionService;
 
         public RoleService(
             IRoleRepo roleRepo,
             IPermissionRepo permissionRepo,
             IUserRepo userRepo,
             ICacheService cacheService,
-            IUnitOfWork unitOfWork)
+            IUnitOfWork unitOfWork,
+            IRolePermissionService rolePermissionService)
         {
             _roleRepo = roleRepo;
             _permissionRepo = permissionRepo;
             _userRepo = userRepo;
             _cacheService = cacheService;
             _unitOfWork = unitOfWork;
+            _rolePermissionService = rolePermissionService;
         }
 
         public async Task<ApiResponse<PagedResponse<RoleResponseDto>>> GetAllAsync(PaginationDto pagedto)
@@ -93,21 +97,25 @@ namespace Ecommerce.Application.Services.Implementations
                 var role = await _roleRepo.GetByIdWithPermissionsAsync(id);
                 if (role == null) throw new NotFoundException("Role not found");
 
+                var fullAccess = PermissionAuthConstants.IsSupremeRole(role.Id, role.Name);
                 var dto = new RoleWithPermissionsDto
                 {
                     Id = role.Id,
                     Name = role.Name,
                     Description = role.Description,
-                    Permissions = role.RolePermissions
-                        .Where(rp => rp.Permission != null)
-                        .Select(rp => new PermissionResponseDto
-                        {
-                            Id = rp.Permission!.Id,
-                            Name = rp.Permission.Name,
-                            Entity = rp.Permission.Entity,
-                            Action = rp.Permission.Action,
-                            Description = rp.Permission.Description
-                        }).ToList()
+                    FullAccess = fullAccess,
+                    Permissions = fullAccess
+                        ? new List<PermissionResponseDto>()
+                        : role.RolePermissions
+                            .Where(rp => rp.Permission != null)
+                            .Select(rp => new PermissionResponseDto
+                            {
+                                Id = rp.Permission!.Id,
+                                Name = rp.Permission.Name,
+                                Entity = rp.Permission.Entity,
+                                Action = rp.Permission.Action,
+                                Description = rp.Permission.Description
+                            }).ToList()
                 };
 
                 await _cacheService.SetAsync(cacheKey, dto, RoleCacheTtl);
@@ -136,33 +144,33 @@ namespace Ecommerce.Application.Services.Implementations
                         throw new BusinessException("One or more Permission IDs do not exist.");
                     }
                 }
-                var role = new Role
+                var createdRole = await _unitOfWork.ExecuteInTransactionAsync(async () =>
                 {
-                    Name = dto.Name,
-                    Description = dto.Description,
-                    IsSystem = false,
-                    RolePermissions = dto.PermissionIds?
-                        .Distinct()
-                        .Select(pId => new RolePermission
-                        {
-                            PermissionId = pId
-                        }).ToList() ?? new List<RolePermission>()
-                };
+                    var role = new Role
+                    {
+                        Name = dto.Name,
+                        Description = dto.Description,
+                        IsSystem = false,
+                        RolePermissions = dto.PermissionIds?
+                            .Distinct()
+                            .Select(pId => new RolePermission
+                            {
+                                PermissionId = pId
+                            }).ToList() ?? new List<RolePermission>()
+                    };
 
-                await _roleRepo.AddAsync(role);
-                await _roleRepo.SaveChangesAsync();
+                    await _roleRepo.AddAsync(role);
+                    return role;
+                });
+                //await _roleRepo.SaveChangesAsync();
 
-                var createdRole = await _roleRepo.GetByIdWithPermissionsAsync(role.Id);
-                if (createdRole == null)
-                {
-                    throw new Exception("Role just created but not found");
-                }
-
+                var roleWithDetails = await _roleRepo.GetByIdWithPermissionsAsync(createdRole.Id);
+                
                 await _cacheService.IncrementAsync(CacheKeyGenerator.RoleVersionKey());
                 if (dto.PermissionIds != null && dto.PermissionIds.Any())
                     await _cacheService.IncrementAsync(CacheKeyGenerator.PermissionVersionKey());
 
-                return ApiResponse<RoleResponseDto>.SuccessResponse(MapToResponseDto(createdRole), "Created successfully");
+                return ApiResponse<RoleResponseDto>.SuccessResponse(MapToResponseDto(roleWithDetails!), "Created successfully");
 
             }
             finally { _writeLock.Release(); }
@@ -213,6 +221,9 @@ namespace Ecommerce.Application.Services.Implementations
                 var role = await _roleRepo.GetByIdWithPermissionsAsync(dto.RoleId);
                 if (role == null) throw new NotFoundException("Role not found");
 
+                if (PermissionAuthConstants.IsSupremeRole(role.Id, role.Name))
+                    throw new BusinessException("Cannot assign permissions to the Admin role.");
+
                 var allExist = await _permissionRepo.AllIdsExistAsync(dto.PermissionIds);
                 if (!allExist)
                 {
@@ -234,25 +245,29 @@ namespace Ecommerce.Application.Services.Implementations
                                 "The User role may only be assigned product.read and category.read permissions.");
                     }
                 }
-
-                role.RolePermissions.Clear();
-
-                var uniquePermissionIds = dto.PermissionIds.Distinct();
-
-                foreach (var pId in uniquePermissionIds)
+                await _unitOfWork.ExecuteInTransactionAsync<bool>(async () =>
                 {
-                    role.RolePermissions.Add(new RolePermission
-                    {
-                        RoleId = dto.RoleId,
-                        PermissionId = pId
-                    });
-                }
+                    role.RolePermissions.Clear();
 
-                await _roleRepo.UpdateAsync(role);
+                    var uniquePermissionIds = dto.PermissionIds.Distinct();
+
+                    foreach (var pId in uniquePermissionIds)
+                    {
+                        role.RolePermissions.Add(new RolePermission
+                        {
+                            RoleId = dto.RoleId,
+                            PermissionId = pId
+                        });
+                    }
+
+                    await _roleRepo.UpdateAsync(role);
+                    return true;
+                });
 
                 await _cacheService.RemoveAsync(CacheKeyGenerator.Role(dto.RoleId));
                 await _cacheService.IncrementAsync(CacheKeyGenerator.RoleVersionKey());
                 await _cacheService.IncrementAsync(CacheKeyGenerator.PermissionVersionKey());
+                await _rolePermissionService.InvalidateRoleCacheAsync(dto.RoleId);
 
                 return ApiResponse<bool>.SuccessResponse(true, "Permissions assigned successfully");
             }

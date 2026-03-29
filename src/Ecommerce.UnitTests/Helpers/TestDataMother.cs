@@ -61,7 +61,9 @@ internal static class TestDataMother
         int roleId = 1,
         int sessionVersion = 1,
         Guid? currentSessionId = null,
-        Role? role = null)
+        Role? role = null,
+        string? refreshTokenHash = null,
+        DateTime? refreshTokenExpiresAtUtc = null)
     {
         var r = role ?? CreateRole("User", roleId);
         return new User
@@ -72,7 +74,9 @@ internal static class TestDataMother
             RoleId = roleId,
             Role = r,
             SessionVersion = sessionVersion,
-            CurrentSessionId = currentSessionId
+            CurrentSessionId = currentSessionId,
+            RefreshTokenHash = refreshTokenHash,
+            RefreshTokenExpiresAtUtc = refreshTokenExpiresAtUtc
         };
     }
 
@@ -81,18 +85,18 @@ internal static class TestDataMother
         {
             SessionId = sessionId,
             SessionVersion = sessionVersion,
-            FingerprintHash = fingerprint,
-            DeviceId = "dev",
-            IpHash = "ip"
+            FingerprintHash = fingerprint
         };
 
     public static UserAuthState CreateUserAuthState(
         int sessionVersion,
         Guid? currentSessionId,
         string fingerprintHash,
-        string? lastIp = "ip",
-        string? lastDevice = "dev") =>
-        new(sessionVersion, currentSessionId, lastIp, lastDevice, fingerprintHash);
+        string? refreshTokenHash = "rt-hash",
+        DateTime? refreshTokenExpiresAtUtc = null) =>
+        new(sessionVersion, currentSessionId, fingerprintHash,
+            refreshTokenHash,
+            refreshTokenExpiresAtUtc ?? DateTime.UtcNow.AddDays(7));
 
     public static Product CreateProduct(int id = 1, int categoryId = 1, string name = "P1", Category? category = null)
     {
@@ -138,8 +142,8 @@ internal static class TestDataMother
     public static RegisterDto CreateRegisterDto(string email = "a@b.com", string password = "secret12") =>
         new() { Email = email, Password = password };
 
-    public static LoginDto CreateLoginDto(string email = "a@b.com", string password = "secret12") =>
-        new() { Email = email, Password = password };
+    public static LoginDto CreateLoginDto(string email = "a@b.com", string password = "secret12", string? deviceId = "test-device") =>
+        new() { Email = email, Password = password, DeviceId = deviceId };
 
     public static RefreshTokenRequestDto CreateRefreshRequest(string access = "at", string refresh = "rt") =>
         new() { AccessToken = access, RefreshToken = refresh };

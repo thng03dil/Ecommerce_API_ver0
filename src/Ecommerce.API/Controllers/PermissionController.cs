@@ -1,4 +1,3 @@
-using Ecommerce.Application.Authorization;
 using Ecommerce.Application.Common.Pagination;
 using Ecommerce.Application.DTOs.Permission;
 using Ecommerce.Application.Services.Interfaces;
@@ -20,7 +19,7 @@ namespace Ecommerce.API.Controllers
         }
 
         [HttpGet]
-        [Permission("permission.read")]
+        [Authorize(Policy = "permission.read")]
         public async Task<IActionResult> GetAll([FromQuery] PaginationDto pagination)
         {
             var result = await _permissionService.GetAllAsync(pagination);
@@ -28,13 +27,13 @@ namespace Ecommerce.API.Controllers
         }
 
         [HttpGet("{id}")]
-        [Permission("permission.read")]
+        [Authorize(Policy = "permission.read")]
         public async Task<IActionResult> GetById(int id)
         {
             var result = await _permissionService.GetByIdAsync(id);
             return OkResponse(result);
         }
-        [Permission("permission.create")]
+        [Authorize(Policy = "permission.create")]
         [HttpPost]
         public async Task<IActionResult> Create(PermissionCreateDto dto)
         {
@@ -42,7 +41,7 @@ namespace Ecommerce.API.Controllers
             return OkResponse(result);
         }
 
-        [Permission("permission.update")]
+        [Authorize(Policy = "permission.update")]
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, PermissionUpdateDto dto)
         {
@@ -50,7 +49,7 @@ namespace Ecommerce.API.Controllers
 
             return OkResponse(result);
         }
-        [Permission("permission.delete")]
+        [Authorize(Policy = "permission.delete")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {

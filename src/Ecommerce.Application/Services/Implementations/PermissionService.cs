@@ -18,16 +18,13 @@ namespace Ecommerce.Application.Services.Implementations
         private static readonly SemaphoreSlim _writeLock = new(1, 1);
 
         private readonly IPermissionRepo _permissionRepo;
-        private readonly IRoleRepo _roleRepo;
         private readonly ICacheService _cacheService;
 
         public PermissionService(
             IPermissionRepo permissionRepo,
-            IRoleRepo roleRepo,
             ICacheService cacheService)
         {
             _permissionRepo = permissionRepo;
-            _roleRepo = roleRepo;
             _cacheService = cacheService;
         }
 
@@ -121,25 +118,7 @@ namespace Ecommerce.Application.Services.Implementations
                 await _permissionRepo.AddAsync(permission);
                 await _permissionRepo.SaveChangesAsync();
 
-                var adminRole = await _roleRepo.GetByNameRoleAsync("Admin");
-                var adminRolePermissionsChanged = false;
-                if (adminRole != null)
-                {
-                    var alreadyAssigned = await _permissionRepo.RolePermissionExistsAsync(adminRole.Id, permission.Id);
-                    if (!alreadyAssigned)
-                    {
-                        await _permissionRepo.AddRolePermissionAsync(new RolePermission
-                        {
-                            RoleId = adminRole.Id,
-                            PermissionId = permission.Id
-                        });
-                        adminRolePermissionsChanged = true;
-                    }
-                }
-
                 await _cacheService.IncrementAsync(CacheKeyGenerator.PermissionVersionKey());
-                if (adminRolePermissionsChanged)
-                    await _cacheService.IncrementAsync(CacheKeyGenerator.RoleVersionKey());
 
                 var item = MapToResponseDto(permission);
                 return ApiResponse<PermissionResponseDto>.SuccessResponse(
@@ -181,6 +160,7 @@ namespace Ecommerce.Application.Services.Implementations
                 await _cacheService.RemoveAsync(CacheKeyGenerator.Permission(id));
                 await _cacheService.IncrementAsync(CacheKeyGenerator.PermissionVersionKey());
                 await _cacheService.IncrementAsync(CacheKeyGenerator.RoleVersionKey());
+                await _cacheService.RemoveByPrefixAsync(CacheKeyGenerator.RolePermissionCachePrefix());
 
                 var item = MapToResponseDto(permission);
                 return ApiResponse<PermissionResponseDto>.SuccessResponse(
@@ -211,6 +191,7 @@ namespace Ecommerce.Application.Services.Implementations
                 await _cacheService.RemoveAsync(CacheKeyGenerator.Permission(id));
                 await _cacheService.IncrementAsync(CacheKeyGenerator.PermissionVersionKey());
                 await _cacheService.IncrementAsync(CacheKeyGenerator.RoleVersionKey());
+                await _cacheService.RemoveByPrefixAsync(CacheKeyGenerator.RolePermissionCachePrefix());
 
                 var item = MapToResponseDto(permission);
                 return ApiResponse<PermissionResponseDto>.SuccessResponse(

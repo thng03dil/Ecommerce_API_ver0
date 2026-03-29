@@ -78,6 +78,7 @@ namespace Ecommerce.Infrastructure.Repositories
             var trimmed = name.Trim();
             return await _context.Products
                 .AnyAsync(p =>
+                    !p.IsDeleted &&
                     p.Name.ToLower() == trimmed.ToLower() &&
                     (!excludeProductId.HasValue || p.Id != excludeProductId.Value));
         }

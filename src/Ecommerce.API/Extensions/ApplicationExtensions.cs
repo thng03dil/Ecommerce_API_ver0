@@ -13,10 +13,12 @@ namespace Ecommerce.API.Extensions
             services.AddScoped<IProductService, ProductService>();
             services.AddScoped<ICategoryService, CategoryService>();
             services.AddScoped<IAuthService, AuthService>();
+            services.AddScoped<IRolePermissionService, RolePermissionService>();
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IRoleService, RoleService>();
             services.AddScoped<IPermissionService, PermissionService>();
             services.AddScoped<IOrderService, OrderService>();
+            services.AddScoped<IOrderPaymentService, OrderPaymentService>();
             services.AddScoped<IDeviceService, DeviceService>();
             services.AddScoped<IUserSessionInvalidationService, UserSessionInvalidationService>();
             services.AddScoped<ISessionValidationService, SessionValidationService>();

@@ -1,4 +1,3 @@
-using Ecommerce.Application.Authorization;
 using Ecommerce.Application.Common.Pagination;
 using Ecommerce.Application.DTOs.ProductDtos;
 using Ecommerce.Application.Services.Interfaces;
@@ -35,7 +34,7 @@ namespace Ecommerce.API.Controllers
             return OkResponse(product);
         }
 
-        [Permission("product.create")]
+        [Authorize(Policy = "product.create")]
         [HttpPost]
         public async Task<IActionResult> Create(ProductCreateDto dto)
         {
@@ -43,7 +42,7 @@ namespace Ecommerce.API.Controllers
             return OkResponse(result);
         }
 
-        [Permission("product.update")]
+        [Authorize(Policy = "product.update")]
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, ProductUpdateDto dto)
         {
@@ -51,7 +50,7 @@ namespace Ecommerce.API.Controllers
 
             return OkResponse(result); 
         }
-        [Permission("product.delete")]
+        [Authorize(Policy = "product.delete")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {

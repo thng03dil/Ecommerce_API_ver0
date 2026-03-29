@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace Ecommerce.Application.DTOs.Auth
 {
@@ -9,7 +9,14 @@ namespace Ecommerce.Application.DTOs.Auth
         public string Email { get; set; } = string.Empty;
 
         [Required]
-        public string Password { get; set; } = String.Empty;
+        public string Password { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Stable device identifier (UUID). Sent from body for easy Swagger/Postman testing.
+        /// Falls back to X-Device-Id header when omitted.
+        /// </summary>
+        [MaxLength(256)]
+        public string? DeviceId { get; set; }
     }
 }
   

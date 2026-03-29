@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Ecommerce.Application.Services.Interfaces;
+using Ecommerce.Domain.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
@@ -27,8 +28,29 @@ public class PermissionAuthorizationHandler : AuthorizationHandler<PermissionReq
         if (httpContext == null)
             return;
 
-        var authService = httpContext.RequestServices.GetRequiredService<IAuthService>();
-        if (await authService.HasPermissionAsync(userId, requirement.Permission))
+        // 1) Supreme role from JWT — no DB
+        var ridClaim = PermissionAuthConstants.GetRoleIdClaim(context.User);
+        var roleNameClaim = PermissionAuthConstants.GetRoleNameClaim(context.User);
+        if (PermissionAuthConstants.IsSupremeFromJwtClaims(ridClaim, roleNameClaim))
+        {
+            context.Succeed(requirement);
+            return;
+        }
+
+        var userRepo = httpContext.RequestServices.GetRequiredService<IUserRepo>();
+        var rolePerm = httpContext.RequestServices.GetRequiredService<IRolePermissionService>();
+
+        var ctx = await userRepo.GetRoleContextForAuthAsync(userId, httpContext.RequestAborted);
+        if (ctx == null)
+            return;
+
+        if (PermissionAuthConstants.IsSupremeRole(ctx.Value.RoleId, ctx.Value.RoleName))
+        {
+            context.Succeed(requirement);
+            return;
+        }
+
+        if (await rolePerm.RoleHasPermissionAsync(ctx.Value.RoleId, requirement.Permission, httpContext.RequestAborted))
             context.Succeed(requirement);
     }
 }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -14,5 +14,6 @@ namespace Ecommerce.Domain.Entities
 
         // Navigation properties 
         public Order? Order { get; set; }
+        public Product? Product { get; set; }
     }
 }

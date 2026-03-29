@@ -10,16 +10,11 @@ namespace Ecommerce.Application.Services.Implementations
     {
         private readonly ICacheService _cache;
         private readonly IUserRepo _userRepo;
-        private readonly ISecurityFingerprintHelper _fingerprint;
 
-        public SessionValidationService(
-            ICacheService cache,
-            IUserRepo userRepo,
-            ISecurityFingerprintHelper fingerprint)
+        public SessionValidationService(ICacheService cache, IUserRepo userRepo)
         {
             _cache = cache;
             _userRepo = userRepo;
-            _fingerprint = fingerprint;
         }
 
         public async Task EnsureAccessTokenSessionValidAsync(
@@ -37,35 +32,51 @@ namespace Ecommerce.Application.Services.Implementations
                 throw new UnauthorizedException("Invalid token session");
             }
 
-            //check if the fingerprint from the login token matches the current fingerprint
             if (currentFingerprint != fpClaim)
                 throw new UnauthorizedException("Invalid session (fingerprint mismatch)");
 
-            var redisKey = CacheKeyGenerator.AuthSession(userId, sv);
+            var redisKey = CacheKeyGenerator.AuthSession(userId);
             var cached = await _cache.GetAsync<UserSessionState>(redisKey);
 
             if (cached != null)
             {
-                if (cached.SessionId != sid
-                    || cached.SessionVersion != sv
-                    || cached.FingerprintHash != fpClaim)
-                {
+                // sid and fp must match exactly; sv in JWT must not be older than Redis sv
+                if (cached.SessionId != sid || cached.FingerprintHash != fpClaim)
                     throw new UnauthorizedException("Invalid session");
-                }
+
+                if (sv < cached.SessionVersion)
+                    throw new UnauthorizedException("Access token is outdated. Please refresh.");
 
                 return;
             }
 
+            // Redis miss: hydrate from DB only when a valid session exists
             var db = await _userRepo.GetUserAuthStateAsync(userId);
             if (db == null)
                 throw new UnauthorizedException("Invalid session");
 
-            if (db.CurrentSessionId != sid
-                || db.SessionVersion != sv
-                || db.LastFingerprintHash != fpClaim)
+            // Session is considered dead if RT was cleared (logout / invalidate)
+            if (string.IsNullOrEmpty(db.RefreshTokenHash)
+                || db.RefreshTokenExpiresAtUtc == null
+                || db.RefreshTokenExpiresAtUtc <= DateTime.UtcNow)
             {
-                throw new UnauthorizedException("Invalid session");
+                throw new UnauthorizedException("Session expired. Please log in again.");
             }
+
+            if (sv < db.SessionVersion)
+                throw new UnauthorizedException("Access token is outdated. Please refresh.");
+
+            if (db.CurrentSessionId != sid || db.SessionVersion != sv || db.LastFingerprintHash != fpClaim)
+                throw new UnauthorizedException("Invalid session");
+
+            // Re-hydrate Redis for subsequent requests
+            var ttl = db.RefreshTokenExpiresAtUtc.Value - DateTime.UtcNow;
+            await _cache.SetAsync(redisKey, new UserSessionState
+            {
+                SessionId = sid,
+                SessionVersion = sv,
+                FingerprintHash = fpClaim
+            }, ttl);
         }
     }
 }

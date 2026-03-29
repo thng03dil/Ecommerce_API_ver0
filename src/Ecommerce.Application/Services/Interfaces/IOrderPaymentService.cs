@@ -1,0 +1,13 @@
+using Ecommerce.Application.Common.Responses;
+using Ecommerce.Application.DTOs.OrderDtos;
+
+namespace Ecommerce.Application.Services.Interfaces;
+
+public interface IOrderPaymentService
+{
+    Task<ApiResponse<CheckoutSessionResponseDto>> CreateCheckoutSessionAsync(
+        int userId,
+        int orderId,
+        CreateCheckoutSessionDto dto,
+        CancellationToken cancellationToken = default);
+}

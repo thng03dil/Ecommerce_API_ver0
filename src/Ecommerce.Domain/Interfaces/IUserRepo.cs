@@ -14,6 +14,9 @@ namespace Ecommerce.Domain.Interfaces
 
         Task<UserAuthState?> GetUserAuthStateAsync(int userId);
 
+        /// <summary>Current role id + name for authorization (DB, realtime).</summary>
+        Task<(int RoleId, string RoleName)?> GetRoleContextForAuthAsync(int userId, CancellationToken cancellationToken = default);
+
         /// <summary>
         /// Reassigns all users with fromRoleId to toRoleId. Does not call SaveChanges (caller manages transaction).
         /// </summary>
@@ -25,6 +28,8 @@ namespace Ecommerce.Domain.Interfaces
 
         Task AddAsync(User user);
         Task SaveChangesAsync();
+        Task UpdateAsync(User user);
+        
     }
 }
  

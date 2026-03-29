@@ -1,3 +1,4 @@
+using System.Threading;
 using Ecommerce.Application.Common.Caching;
 using Ecommerce.Application.Common.Pagination;
 using Ecommerce.Application.DTOs.Permission;
@@ -20,6 +21,7 @@ public class RoleServiceTests
     private readonly Mock<IUserRepo> _userRepo = new();
     private readonly Mock<ICacheService> _cacheService = new();
     private readonly Mock<IUnitOfWork> _unitOfWork = new();
+    private readonly Mock<IRolePermissionService> _rolePermissionService = new();
     private readonly RoleService _sut;
 
     public RoleServiceTests()
@@ -29,7 +31,8 @@ public class RoleServiceTests
             _permissionRepo.Object,
             _userRepo.Object,
             _cacheService.Object,
-            _unitOfWork.Object);
+            _unitOfWork.Object,
+            _rolePermissionService.Object);
     }
 
     #region GetAllAsync
@@ -114,10 +117,35 @@ public class RoleServiceTests
         var result = await _sut.GetByIdAsync(3);
 
         result.Success.Should().BeTrue();
-        result.Data!.Permissions.Should().ContainSingle(p => p.Id == 9);
+        result.Data!.FullAccess.Should().BeFalse();
+        result.Data.Permissions.Should().ContainSingle(p => p.Id == 9);
         _cacheService.Verify(
             x => x.SetAsync(CacheKeyGenerator.Role(3), It.IsAny<RoleWithPermissionsDto>(), It.IsAny<TimeSpan?>()),
             Times.Once);
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_WhenAdmin_ShouldExposeFullAccessAndIgnoreDbPermissions()
+    {
+        var perm = new Permission { Id = 9, Name = "a.b", Entity = "a", Action = "b" };
+        var role = new Role
+        {
+            Id = 1,
+            Name = "Admin",
+            RolePermissions = new List<RolePermission>
+            {
+                new() { RoleId = 1, PermissionId = 9, Permission = perm }
+            }
+        };
+
+        _cacheService.Setup(x => x.GetAsync<RoleWithPermissionsDto>(It.IsAny<string>())).ReturnsAsync((RoleWithPermissionsDto?)null);
+        _roleRepo.Setup(x => x.GetByIdWithPermissionsAsync(1)).ReturnsAsync(role);
+
+        var result = await _sut.GetByIdAsync(1);
+
+        result.Success.Should().BeTrue();
+        result.Data!.FullAccess.Should().BeTrue();
+        result.Data.Permissions.Should().BeEmpty();
     }
 
     [Fact]
@@ -275,11 +303,11 @@ public class RoleServiceTests
     [Fact]
     public async Task AssignPermissionsAsync_WhenPermissionIdsInvalid_ShouldThrowBusinessException()
     {
-        var role = new Role { Id = 1, RolePermissions = new List<RolePermission>() };
-        _roleRepo.Setup(x => x.GetByIdWithPermissionsAsync(1)).ReturnsAsync(role);
+        var role = new Role { Id = 10, Name = "Editor", RolePermissions = new List<RolePermission>() };
+        _roleRepo.Setup(x => x.GetByIdWithPermissionsAsync(10)).ReturnsAsync(role);
         _permissionRepo.Setup(x => x.AllIdsExistAsync(It.IsAny<List<int>>())).ReturnsAsync(false);
 
-        var act = () => _sut.AssignPermissionsAsync(new AssignPermissionsDto { RoleId = 1, PermissionIds = new List<int> { 99 } });
+        var act = () => _sut.AssignPermissionsAsync(new AssignPermissionsDto { RoleId = 10, PermissionIds = new List<int> { 99 } });
 
         (await act.Should().ThrowAsync<BusinessException>()).Which.ErrorCode.Should()
             .Be("One or more Permission IDs do not exist.");
@@ -288,8 +316,8 @@ public class RoleServiceTests
     [Fact]
     public async Task AssignPermissionsAsync_WhenValid_ShouldUpdateCachesWithoutSessionInvalidation()
     {
-        var roleId = 1;
-        var permissionIds = new List<int> { 10, 11 };
+        var roleId = 10;
+        var permissionIds = new List<int> { 11, 12 };
         var role = new Role { Id = roleId, Name = "Editor", RolePermissions = new List<RolePermission>() };
 
         _roleRepo.Setup(x => x.GetByIdWithPermissionsAsync(roleId)).ReturnsAsync(role);
@@ -302,7 +330,21 @@ public class RoleServiceTests
         _cacheService.Verify(x => x.RemoveAsync(CacheKeyGenerator.Role(roleId)), Times.Once);
         _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.RoleVersionKey()), Times.Once);
         _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.PermissionVersionKey()), Times.Once);
+        _rolePermissionService.Verify(x => x.InvalidateRoleCacheAsync(roleId, It.IsAny<CancellationToken>()), Times.Once);
         _userRepo.Verify(x => x.GetActiveUserIdsByRoleIdAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task AssignPermissionsAsync_WhenAdminRole_ShouldThrowBusinessException()
+    {
+        var role = new Role { Id = 1, Name = "Admin", RolePermissions = new List<RolePermission>() };
+        _roleRepo.Setup(x => x.GetByIdWithPermissionsAsync(1)).ReturnsAsync(role);
+
+        var act = () => _sut.AssignPermissionsAsync(new AssignPermissionsDto { RoleId = 1, PermissionIds = new List<int> { 1 } });
+
+        (await act.Should().ThrowAsync<BusinessException>()).Which.ErrorCode.Should()
+            .Be("Cannot assign permissions to the Admin role.");
+        _rolePermissionService.Verify(x => x.InvalidateRoleCacheAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]

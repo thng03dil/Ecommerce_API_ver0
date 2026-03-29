@@ -49,7 +49,11 @@ namespace Ecommerce.Infrastructure.SecurityHelpers
                 new Claim("sid", sessionId.ToString()),
                 new Claim("sv", sessionVersion.ToString()),
                 new Claim("fp", fingerprint ?? string.Empty),
+                new Claim("role_id", user.RoleId.ToString()),
             };
+
+            if (user.Role != null && !string.IsNullOrWhiteSpace(user.Role.Name))
+                claims.Add(new Claim(ClaimTypes.Role, user.Role.Name));
 
             var key = new SymmetricSecurityKey(_keyBytes);
 

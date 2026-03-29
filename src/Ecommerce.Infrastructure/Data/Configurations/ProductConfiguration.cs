@@ -51,8 +51,8 @@ namespace Ecommerce.Infrastructure.Data.Configurations
                 .IsUnique()
                 .HasFilter("[IsDeleted] = 0");
 
-            builder.HasQueryFilter(p => !p.IsDeleted);
-
+            // No global query filter: OrderItem requires a consistent Product navigation for order history.
+            // Exclude soft-deleted rows in ProductRepo / catalog queries with !p.IsDeleted.
         }
     }
 }

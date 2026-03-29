@@ -3,6 +3,7 @@ using Ecommerce.Application.Common.Responses;
 using Ecommerce.Application.DTOs.OrderDtos;
 using Ecommerce.Application.Services.Interfaces;
 using Ecommerce.Domain.Common;
+using Ecommerce.Domain.Entities;
 using Ecommerce.Domain.Enums;
 using Ecommerce.Domain.Interfaces;
 
@@ -18,6 +19,45 @@ public class OrderService : IOrderService
         _orderRepo = orderRepo;
         _cacheService = cacheService;
     }
+
+    public async Task<ApiResponse<OrderResponseDto>> GetByIdForUserAsync(
+        int userId,
+        int orderId,
+        CancellationToken cancellationToken = default)
+    {
+        if (userId <= 0)
+            return ApiResponse<OrderResponseDto>.ErrorResponse("User is not authenticated.", 401);
+
+        var order = await _orderRepo.GetByIdForUserWithItemsAndProductsAsync(orderId, userId, cancellationToken);
+        if (order == null)
+            return ApiResponse<OrderResponseDto>.ErrorResponse("Order not found.", 404);
+
+        return ApiResponse<OrderResponseDto>.SuccessResponse(MapToDto(order));
+    }
+
+    public async Task<ApiResponse<IReadOnlyList<OrderResponseDto>>> ListForUserAsync(
+        int userId,
+        CancellationToken cancellationToken = default)
+    {
+        if (userId <= 0)
+            return ApiResponse<IReadOnlyList<OrderResponseDto>>.ErrorResponse("User is not authenticated.", 401);
+
+        var orders = await _orderRepo.ListForUserAsync(userId, cancellationToken);
+        var dtos = orders.Select(MapToDto).ToList();
+        return ApiResponse<IReadOnlyList<OrderResponseDto>>.SuccessResponse(dtos);
+    }
+
+    private static OrderResponseDto MapToDto(Order order) =>
+        new()
+        {
+            Id = order.Id,
+            UserId = order.UserId,
+            TotalAmount = order.TotalAmount,
+            Status = order.Status,
+            CreatedAt = order.CreatedAt,
+            PaidAt = order.PaidAt,
+            PaymentExpiresAt = order.PaymentExpiresAt
+        };
 
     public async Task<ApiResponse<OrderResponseDto>> PlaceOrderAsync(
         int userId,
@@ -47,7 +87,8 @@ public class OrderService : IOrderService
             UserId = userId,
             TotalAmount = outcome.TotalAmount,
             Status = OrderStatus.Pending,
-            CreatedAt = outcome.CreatedAt
+            CreatedAt = outcome.CreatedAt,
+            PaymentExpiresAt = outcome.PaymentExpiresAt
         };
 
         return ApiResponse<OrderResponseDto>.SuccessResponse(response, "Order placed successfully.");

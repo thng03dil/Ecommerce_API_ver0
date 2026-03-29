@@ -29,16 +29,23 @@ namespace Ecommerce.Application.Common.Caching
         public static string BlacklistToken(string tokenHash) =>
             $"Blacklist:Token:{tokenHash}";
 
-        /// <summary>Key cache session; sessionVersion khớp User.SessionVersion (JWT claim sv).</summary>
-        public static string AuthSession(int userId, int sessionVersion) =>
-            $"auth:session:user:{userId}:v{sessionVersion}";
+        /// <summary>Single session key per user. Overwrites on every login / refresh.</summary>
+        public static string AuthSession(int userId) =>
+            $"auth:session:user:{userId}";
 
-        /// <summary>Prefix logic để xóa mọi phiên bản session Redis của user (khớp auth:session:user:{id}:v*).</summary>
+        /// <summary>Kept for backward-compat cache removal in tests; points to the single-key prefix.</summary>
         public static string AuthSessionUserPrefix(int userId) =>
-            $"auth:session:user:{userId}:v";
+            $"auth:session:user:{userId}";
 
         public static string LoginFailure(string normalizedEmail) =>
             $"auth:loginfail:{normalizedEmail.ToLowerInvariant()}";
+
+        /// <summary>Cached lowercase permission names for a role (authorization).</summary>
+        public static string RolePermissionNames(int roleId) =>
+            $"auth:roleperm:{roleId}";
+
+        public static string RolePermissionCachePrefix() =>
+            "auth:roleperm:";
         /// <summary>Computes a short hash from an object for use in cache keys (e.g. filter JSON).</summary>
         public static string HashFilter(object? obj)
         {

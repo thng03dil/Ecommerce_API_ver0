@@ -36,6 +36,16 @@ namespace Ecommerce.Infrastructure.Data.Configurations
                 .HasMaxLength(20)
                 .IsRequired();
 
+            builder.Property(o => o.StripeCheckoutSessionId)
+                .HasMaxLength(255);
+
+            builder.Property(o => o.StripePaymentIntentId)
+                .HasMaxLength(255);
+
+            builder.HasIndex(o => o.StripeCheckoutSessionId)
+                .IsUnique()
+                .HasFilter("[StripeCheckoutSessionId] IS NOT NULL");
+
             // when delete order, delete all related order items
             builder.HasMany(o => o.OrderItems)
              .WithOne(i => i.Order)

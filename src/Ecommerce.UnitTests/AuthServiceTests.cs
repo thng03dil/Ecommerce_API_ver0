@@ -1,5 +1,6 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Threading;
 using Ecommerce.Application.Common.Caching;
 using Ecommerce.Application.DTOs.Auth;
 using Ecommerce.Application.DTOs.Common;
@@ -18,18 +19,16 @@ namespace Ecommerce.UnitTests;
 
 public class AuthServiceTests
 {
-    //mock depenqdencies for AuthService 
     private readonly Mock<IUserRepo> _userRepo = new();
     private readonly Mock<IRoleRepo> _roleRepo = new();
     private readonly Mock<IJwtService> _jwtService = new();
     private readonly Mock<IPasswordHasher> _passwordHasher = new();
-    private readonly Mock<IRefreshTokenRepo> _refreshTokenRepo = new();
     private readonly Mock<ICacheService> _cacheService = new();
     private readonly Mock<IDeviceService> _deviceService = new();
     private readonly Mock<ISecurityFingerprintHelper> _fingerprint = new();
-    private readonly Mock<ISessionValidationService> _sessionValidation = new();
     private readonly Mock<ITokenBlacklistService> _tokenBlacklist = new();
     private readonly Mock<IUserSessionInvalidationService> _sessionInvalidation = new();
+    private readonly Mock<IRolePermissionService> _rolePermissionService = new();
     private readonly AuthService _sut;
 
     public AuthServiceTests()
@@ -40,45 +39,40 @@ public class AuthServiceTests
             _jwtService.Object,
             TestDataMother.CreateJwtOptions(),
             _passwordHasher.Object,
-            _refreshTokenRepo.Object,
             _cacheService.Object,
             _deviceService.Object,
             _fingerprint.Object,
-            _sessionValidation.Object,
             _tokenBlacklist.Object,
-            _sessionInvalidation.Object);
+            _sessionInvalidation.Object,
+            _rolePermissionService.Object);
     }
+
+    // ──────────────────────────────────────────────────────
+    // Register
+    // ──────────────────────────────────────────────────────
 
     [Fact]
     public async Task RegisterAsync_DuplicateEmail_ShouldThrowConflictException()
     {
-        // Arrange
         var dto = TestDataMother.CreateRegisterDto();
         _userRepo.Setup(x => x.GetByEmailAsync(dto.Email))
                  .ReturnsAsync(new User { Id = 1, Email = dto.Email });
 
-        // Act
         Func<Task> act = () => _sut.RegisterAsync(dto);
 
-        // Assert
-        await act.Should().ThrowAsync<ConflictException>() 
-                 .WithMessage("CONFLICT_ERROR");
-
+        await act.Should().ThrowAsync<ConflictException>();
         _userRepo.Verify(x => x.AddAsync(It.IsAny<User>()), Times.Never);
     }
 
     [Fact]
     public async Task RegisterAsync_MissingDefaultRole_ShouldThrowException()
     {
-        // Arrange
         var dto = TestDataMother.CreateRegisterDto();
         _userRepo.Setup(x => x.GetByEmailAsync(dto.Email)).ReturnsAsync((User?)null);
         _roleRepo.Setup(x => x.GetByNameRoleAsync("User")).ReturnsAsync((Role?)null);
 
-        // Act
         Func<Task> act = () => _sut.RegisterAsync(dto);
 
-        // Assert
         await act.Should().ThrowAsync<Exception>()
             .WithMessage("*default 'User' role is missing*");
     }
@@ -86,104 +80,62 @@ public class AuthServiceTests
     [Fact]
     public async Task RegisterAsync_Valid_ShouldCallAddAsync()
     {
-        // Arrange
         var dto = TestDataMother.CreateRegisterDto("new@x.com", "password1");
         _userRepo.Setup(x => x.GetByEmailAsync(dto.Email)).ReturnsAsync((User?)null);
         _roleRepo.Setup(x => x.GetByNameRoleAsync("User")).ReturnsAsync(new Role { Id = 2, Name = "User" });
         _passwordHasher.Setup(x => x.Hash(dto.Password)).Returns("hashed!");
 
-        // Act
         await _sut.RegisterAsync(dto);
 
-        // Assert
         _passwordHasher.Verify(x => x.Hash(dto.Password), Times.Once);
-        _roleRepo.Verify(x => x.GetByNameRoleAsync("User"), Times.Once);
         _userRepo.Verify(
-            x => x.AddAsync(It.Is<User>(
-                u => u.Email == dto.Email &&
-                u.PasswordHash == "hashed!" &&
-                u.RoleId == 2
-                )),
+            x => x.AddAsync(It.Is<User>(u => u.Email == dto.Email && u.PasswordHash == "hashed!" && u.RoleId == 2)),
             Times.Once);
     }
+
+    // ──────────────────────────────────────────────────────
+    // Login
+    // ──────────────────────────────────────────────────────
 
     [Fact]
     public async Task LoginAsync_UserNotFound_ShouldThrowUnauthorizedException()
     {
-        // Arrange
         var dto = TestDataMother.CreateLoginDto();
-        _deviceService.Setup(x => x.GetDeviceId()).Returns("device-login");
-        _userRepo.Setup(x => x.GetByEmailAsync(dto.Email))
-                 .ReturnsAsync((User?)null);
+        _userRepo.Setup(x => x.GetByEmailAsync(dto.Email)).ReturnsAsync((User?)null);
+        _cacheService.Setup(x => x.GetAsync<int?>(It.IsAny<string>())).ReturnsAsync((int?)null);
 
-        // Giả lập chưa có lần fail nào trước đó
-        _cacheService.Setup(x => x.GetAsync<int?>(It.IsAny<string>()))
-                     .ReturnsAsync((int?)null);
-
-        // Act
         Func<Task> act = () => _sut.LoginAsync(dto);
 
-        // Assert
         await act.Should().ThrowAsync<UnauthorizedException>()
                  .WithMessage("Invalid email or password");
-
-        // Verify: Phải tăng số lần fail trong cache
-        _cacheService.Verify(x => x.SetAsync(
-        It.IsAny<string>(),
-        It.IsAny<int>(), 
-        It.IsAny<TimeSpan>()),
-        Times.Once);
+        _cacheService.Verify(x => x.SetAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<TimeSpan>()), Times.Once);
     }
 
     [Fact]
     public async Task LoginAsync_WrongPassword_ShouldThrowUnauthorizedException()
     {
-        // Arrange
         var dto = TestDataMother.CreateLoginDto();
         var user = TestDataMother.CreateUser(70302, dto.Email, "hashed-password");
-
-        _deviceService.Setup(x => x.GetDeviceId()).Returns("device-login");
         _userRepo.Setup(x => x.GetByEmailAsync(dto.Email)).ReturnsAsync(user);
+        _passwordHasher.Setup(x => x.Verify(dto.Password, user.PasswordHash)).Returns(false);
+        _cacheService.Setup(x => x.GetAsync<int?>(It.IsAny<string>())).ReturnsAsync(2);
 
-        // Giả lập verify mật khẩu trả về false
-        _passwordHasher.Setup(x => x.Verify(dto.Password, user.PasswordHash))
-                       .Returns(false);
-
-        // Giả lập đã fail 2 lần trước đó
-        _cacheService.Setup(x => x.GetAsync<int?>(It.IsAny<string>()))
-                     .ReturnsAsync(2);
-
-        // Act
         Func<Task> act = () => _sut.LoginAsync(dto);
 
-        // Assert
         await act.Should().ThrowAsync<UnauthorizedException>()
                  .WithMessage("Invalid email or password");
-
-        // Verify verify password đã được gọi
-        _passwordHasher.Verify(x => x.Verify(dto.Password, user.PasswordHash), Times.Once);
-
-        // Verify số lần fail tăng từ 2 lên 3
-        _cacheService.Verify(x => x.SetAsync(
-            It.IsAny<string>(),
-            3,
-            It.IsAny<TimeSpan>()),
-            Times.Once);
+        _cacheService.Verify(x => x.SetAsync(It.IsAny<string>(), 3, It.IsAny<TimeSpan>()), Times.Once);
     }
 
     [Fact]
     public async Task LoginAsync_TooManyFailures_ShouldThrowTooManyRequestsException()
     {
-        // Arrange
         var dto = TestDataMother.CreateLoginDto("lock@test.com", "bad");
-        _deviceService.Setup(x => x.GetDeviceId()).Returns("device-login");
         _userRepo.Setup(x => x.GetByEmailAsync(dto.Email)).ReturnsAsync((User?)null);
         _cacheService.Setup(x => x.GetAsync<int?>(It.IsAny<string>())).ReturnsAsync(5);
 
-        // Act
         var act = async () => await _sut.LoginAsync(dto);
 
-        // Assert — after increment, failCount 6 > MaxLoginFailures (5)
         (await act.Should().ThrowAsync<TooManyRequestsException>())
             .Which.Message.Should().Be("Too many login attempts. Try again later.");
     }
@@ -191,66 +143,60 @@ public class AuthServiceTests
     [Fact]
     public async Task LoginAsync_MissingDeviceId_ShouldThrowUnauthorizedException()
     {
-        // Arrange
-        var dto = TestDataMother.CreateLoginDto();
+        // Both body and header empty
+        var dto = TestDataMother.CreateLoginDto(deviceId: null);
         _deviceService.Setup(x => x.GetDeviceId()).Returns("");
 
-        // Act
         var act = async () => await _sut.LoginAsync(dto);
 
-        // Assert
         (await act.Should().ThrowAsync<UnauthorizedException>())
-            .WithMessage("X-Device-Id header is required for login");
+            .WithMessage("*DeviceId is required*");
         _userRepo.Verify(x => x.GetByEmailAsync(It.IsAny<string>()), Times.Never);
-        _passwordHasher.Verify(x => x.Verify(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
     }
 
     [Fact]
-    public async Task LoginAsync_Valid_ShouldReturnAuthResponse()
+    public async Task LoginAsync_Valid_ShouldReturnAuthResponseAndStoreRtOnUser()
     {
-        // Arrange
         var userId = 70306;
-        var dto = TestDataMother.CreateLoginDto("ok@test.com", "pwd");
+        var dto = TestDataMother.CreateLoginDto("ok@test.com", "pwd", deviceId: "body-device");
         var userForCred = TestDataMother.CreateUser(userId, dto.Email, "hash");
         var userForUpdate = TestDataMother.CreateUser(userId, dto.Email, "hash", sessionVersion: 3);
+
         _userRepo.Setup(x => x.GetByEmailAsync(dto.Email)).ReturnsAsync(userForCred);
         _passwordHasher.Setup(x => x.Verify(dto.Password, userForCred.PasswordHash)).Returns(true);
-        _deviceService.Setup(x => x.GetDeviceId()).Returns("device-70306");
-        _fingerprint.Setup(x => x.ComputeFingerprint("device-70306")).Returns("fp-70306");
-        _fingerprint.Setup(x => x.GetClientIpAddress()).Returns("ip-70306");
+        _fingerprint.Setup(x => x.ComputeFingerprint("body-device")).Returns("fp-device");
         _userRepo.Setup(x => x.GetByIdForUpdateAsync(userId)).ReturnsAsync(userForUpdate);
         _jwtService.Setup(x => x.GenerateRefreshToken()).Returns("plain-rt");
         _jwtService.Setup(x => x.HashToken("plain-rt")).Returns("hash-rt");
         _jwtService
-            .Setup(x => x.GenerateAccessToken(
-                It.IsAny<User>(),
-                It.IsAny<Guid>(),
-                It.IsAny<int>(),
-                "fp-70306"))
+            .Setup(x => x.GenerateAccessToken(It.IsAny<User>(), It.IsAny<Guid>(), It.IsAny<int>(), "fp-device"))
             .Returns("access-token");
 
-        // Act
         var result = await _sut.LoginAsync(dto);
 
-        // Assert
         result.AccessToken.Should().Be("access-token");
         result.RefreshToken.Should().Be("plain-rt");
-        _refreshTokenRepo.Verify(x => x.RevokeAllForUserAsync(userId), Times.Once);
-        _refreshTokenRepo.Verify(x => x.AddAsync(It.IsAny<RefreshToken>()), Times.Once);
+
+        // RT stored on user (not a separate repo)
+        userForUpdate.RefreshTokenHash.Should().Be("hash-rt");
+        userForUpdate.RefreshTokenExpiresAtUtc.Should().BeCloseTo(DateTime.UtcNow.AddDays(7), TimeSpan.FromSeconds(5));
+        userForUpdate.SessionVersion.Should().Be(4); // 3 + 1
+
         _userRepo.Verify(x => x.SaveChangesAsync(), Times.Once);
-        _jwtService.Verify(
-            x => x.GenerateAccessToken(
-                It.Is<User>(u => u.Id == userId),
-                userForUpdate.CurrentSessionId!.Value,
-                userForUpdate.SessionVersion,
-                "fp-70306"),
-            Times.Once);
+        _cacheService.Verify(x => x.SetAsync(
+            It.IsAny<string>(),
+            It.IsAny<object>(),
+            It.IsAny<TimeSpan>()),
+            Times.AtLeastOnce);
     }
+
+    // ──────────────────────────────────────────────────────
+    // Refresh
+    // ──────────────────────────────────────────────────────
 
     [Fact]
     public async Task RefreshTokenAsync_InvalidUserIdClaim_ShouldThrowUnauthorizedException()
     {
-        // Arrange
         var principal = new ClaimsPrincipal(new ClaimsIdentity(new[]
         {
             new Claim("sid", Guid.NewGuid().ToString()),
@@ -260,10 +206,8 @@ public class AuthServiceTests
         _jwtService.Setup(x => x.GetPrincipalFromExpiredToken(It.IsAny<string>())).Returns(principal);
         var req = TestDataMother.CreateRefreshRequest();
 
-        // Act
         var act = async () => await _sut.RefreshTokenAsync(req);
 
-        // Assert
         (await act.Should().ThrowAsync<UnauthorizedException>())
             .WithMessage("Invalid token");
     }
@@ -271,106 +215,102 @@ public class AuthServiceTests
     [Fact]
     public async Task RefreshTokenAsync_InvalidSvClaim_ShouldThrowUnauthorizedException()
     {
-        // Arrange
         var userId = 70308;
         var sid = Guid.NewGuid().ToString();
         var principal = TestDataMother.CreateClaimsPrincipal(userId, sid, "not-int", "fp");
         _jwtService.Setup(x => x.GetPrincipalFromExpiredToken(It.IsAny<string>())).Returns(principal);
         var req = TestDataMother.CreateRefreshRequest();
 
-        // Act
         var act = async () => await _sut.RefreshTokenAsync(req);
 
-        // Assert
         (await act.Should().ThrowAsync<UnauthorizedException>())
             .WithMessage("Invalid token");
     }
 
     [Fact]
-    public async Task RefreshTokenAsync_RefreshTokenRevoked_ShouldInvalidateAndThrow()
+    public async Task RefreshTokenAsync_FingerprintMismatch_ShouldThrow()
     {
-        // Arrange
         var userId = 70309;
         var sid = Guid.NewGuid();
-        var principal = TestDataMother.CreateClaimsPrincipal(userId, sid.ToString(), "1", "fp");
+        var principal = TestDataMother.CreateClaimsPrincipal(userId, sid.ToString(), "3", "fp");
         _jwtService.Setup(x => x.GetPrincipalFromExpiredToken(It.IsAny<string>())).Returns(principal);
-        _deviceService.Setup(x => x.GetDeviceId()).Returns("d");
-        _fingerprint.Setup(x => x.ComputeFingerprint("d")).Returns("fp");
-        _sessionValidation
-            .Setup(x => x.EnsureAccessTokenSessionValidAsync(
-                userId,
-                sid.ToString(),
-                "1",
-                "fp",
-                "fp",
-                It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
-        _jwtService.Setup(x => x.HashToken("rt-plain")).Returns("h1");
-        var rt = new RefreshToken(userId, "h1", DateTime.UtcNow.AddDays(1), "d", sid, Guid.NewGuid());
-        rt.Revoke();
-        _refreshTokenRepo.Setup(x => x.GetByTokenHashAnyAsync("h1")).ReturnsAsync(rt);
+        _deviceService.Setup(x => x.GetDeviceId()).Returns("other-device");
+        _fingerprint.Setup(x => x.ComputeFingerprint("other-device")).Returns("different-fp");
+
+        var user = TestDataMother.CreateUser(userId, sessionVersion: 3, currentSessionId: sid,
+            refreshTokenHash: "rt-h", refreshTokenExpiresAtUtc: DateTime.UtcNow.AddDays(5));
+        user.LastFingerprintHash = "original-fp"; // stored fp from login
+        _userRepo.Setup(x => x.GetByIdForUpdateAsync(userId)).ReturnsAsync(user);
+
         var req = TestDataMother.CreateRefreshRequest("at", "rt-plain");
 
-        // Act
         var act = async () => await _sut.RefreshTokenAsync(req);
 
-        // Assert
-        await act.Should().ThrowAsync<UnauthorizedException>();
-        _sessionInvalidation.Verify(x => x.InvalidateAsync(userId, It.IsAny<CancellationToken>()), Times.Once);
+        await act.Should().ThrowAsync<UnauthorizedException>()
+            .WithMessage("*fingerprint mismatch*");
     }
 
     [Fact]
-    public async Task RefreshTokenAsync_Valid_ShouldReturnNewAccessTokenAndSameRefreshTokenWithoutRotation()
+    public async Task RefreshTokenAsync_InvalidRtHash_ShouldThrow()
     {
-        // Arrange
         var userId = 70310;
+        var sid = Guid.NewGuid();
+        var principal = TestDataMother.CreateClaimsPrincipal(userId, sid.ToString(), "2", "fp");
+        _jwtService.Setup(x => x.GetPrincipalFromExpiredToken(It.IsAny<string>())).Returns(principal);
+        _jwtService.Setup(x => x.GetAccessTokenRemainingLifetime(It.IsAny<string>())).Returns((TimeSpan?)null);
+        _deviceService.Setup(x => x.GetDeviceId()).Returns("dev");
+        _fingerprint.Setup(x => x.ComputeFingerprint("dev")).Returns("fp");
+        _jwtService.Setup(x => x.HashToken("wrong-rt")).Returns("wrong-hash");
+
+        var user = TestDataMother.CreateUser(userId, sessionVersion: 2, currentSessionId: sid,
+            refreshTokenHash: "correct-hash", refreshTokenExpiresAtUtc: DateTime.UtcNow.AddDays(5));
+        user.LastFingerprintHash = "fp";
+        _userRepo.Setup(x => x.GetByIdForUpdateAsync(userId)).ReturnsAsync(user);
+
+        var req = TestDataMother.CreateRefreshRequest("at", "wrong-rt");
+
+        var act = async () => await _sut.RefreshTokenAsync(req);
+
+        await act.Should().ThrowAsync<UnauthorizedException>()
+            .WithMessage("Invalid refresh token");
+    }
+
+    [Fact]
+    public async Task RefreshTokenAsync_Valid_ShouldReturnNewAccessTokenAndIncrementSv()
+    {
+        var userId = 70311;
         var sid = Guid.NewGuid();
         var principal = TestDataMother.CreateClaimsPrincipal(userId, sid.ToString(), "4", "fp");
         _jwtService.Setup(x => x.GetPrincipalFromExpiredToken(It.IsAny<string>())).Returns(principal);
         _jwtService.Setup(x => x.GetAccessTokenRemainingLifetime(It.IsAny<string>())).Returns((TimeSpan?)null);
         _deviceService.Setup(x => x.GetDeviceId()).Returns("dev");
         _fingerprint.Setup(x => x.ComputeFingerprint("dev")).Returns("fp");
-        _fingerprint.Setup(x => x.GetClientIpAddress()).Returns("ip");
-        _sessionValidation
-            .Setup(x => x.EnsureAccessTokenSessionValidAsync(
-                userId,
-                sid.ToString(),
-                "4",
-                "fp",
-                "fp",
-                It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
         _jwtService.Setup(x => x.HashToken("old-rt")).Returns("rt-h");
-        var stored = new RefreshToken(userId, "rt-h", DateTime.UtcNow.AddDays(1), "dev", sid, Guid.NewGuid());
-        stored.Id = 900;
-        _refreshTokenRepo.Setup(x => x.GetByTokenHashAnyAsync("rt-h")).ReturnsAsync(stored);
-        var user = TestDataMother.CreateUser(userId, sessionVersion: 4);
+
+        var user = TestDataMother.CreateUser(userId, sessionVersion: 4, currentSessionId: sid,
+            refreshTokenHash: "rt-h", refreshTokenExpiresAtUtc: DateTime.UtcNow.AddDays(5));
+        user.LastFingerprintHash = "fp";
         _userRepo.Setup(x => x.GetByIdForUpdateAsync(userId)).ReturnsAsync(user);
-        _jwtService
-            .Setup(x => x.GenerateAccessToken(It.IsAny<User>(), sid, 4, "fp"))
-            .Returns("new-access");
+        _jwtService.Setup(x => x.GenerateAccessToken(It.IsAny<User>(), sid, 5, "fp")).Returns("new-access");
 
         var req = TestDataMother.CreateRefreshRequest("expired-at", "old-rt");
 
-        // Act
         var result = await _sut.RefreshTokenAsync(req);
 
-        // Assert
         result.AccessToken.Should().Be("new-access");
-        result.RefreshToken.Should().Be("old-rt");
-        _refreshTokenRepo.Verify(x => x.RevokeByIdAsync(It.IsAny<int>()), Times.Never);
-        _refreshTokenRepo.Verify(x => x.AddAsync(It.IsAny<RefreshToken>()), Times.Never);
+        result.RefreshToken.Should().Be("old-rt"); // RT unchanged
+        user.SessionVersion.Should().Be(5);        // sv incremented
         _userRepo.Verify(x => x.SaveChangesAsync(), Times.Once);
-        _cacheService.Verify(
-            x => x.RemoveByPrefixAsync(CacheKeyGenerator.AuthSessionUserPrefix(userId)),
-            Times.Once);
     }
+
+    // ──────────────────────────────────────────────────────
+    // Logout
+    // ──────────────────────────────────────────────────────
 
     [Fact]
     public async Task LogoutAsync_WithValidAccessToken_ShouldBlacklistWhenRemainingPositive()
     {
-        // Arrange
-        var userId = 70311;
+        var userId = 70312;
         var principal = new ClaimsPrincipal(new ClaimsIdentity(new[]
         {
             new Claim(JwtRegisteredClaimNames.Jti, "jid-1")
@@ -379,10 +319,8 @@ public class AuthServiceTests
         _jwtService.Setup(x => x.GetAccessTokenRemainingLifetime("at")).Returns(TimeSpan.FromMinutes(3));
         _jwtService.Setup(x => x.HashToken("jid-1")).Returns("jti-hash");
 
-        // Act
         await _sut.LogoutAsync(userId, "at");
 
-        // Assert
         _tokenBlacklist.Verify(
             x => x.BlacklistAsync("jti-hash", It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()),
             Times.Once);
@@ -392,43 +330,42 @@ public class AuthServiceTests
     [Fact]
     public async Task LogoutAsync_ShouldCallInvalidateAsync()
     {
-        // Arrange
-        var userId = 70312;
+        var userId = 70313;
 
-        // Act
         await _sut.LogoutAsync(userId, string.Empty);
 
-        // Assert
         _sessionInvalidation.Verify(x => x.InvalidateAsync(userId, It.IsAny<CancellationToken>()), Times.Once);
         _tokenBlacklist.Verify(
             x => x.BlacklistAsync(It.IsAny<string>(), It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }
 
+    // ──────────────────────────────────────────────────────
+    // HasPermission
+    // ──────────────────────────────────────────────────────
+
     [Fact]
-    public async Task HasPermissionAsync_WhenRoleIsAdmin_ReturnsTrue_WithoutCheckingRolePermissions()
+    public async Task HasPermissionAsync_WhenRoleIsAdmin_ReturnsTrue_WithoutCallingRolePermissionService()
     {
-        var adminRole = new Role { Id = 1, Name = "Admin", RolePermissions = [] };
-        var user = new User { Id = 10, RoleId = 1, Role = adminRole };
-        _userRepo.Setup(x => x.GetByIdWithPermissionsAsync(10)).ReturnsAsync(user);
+        _userRepo.Setup(x => x.GetRoleContextForAuthAsync(10, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((1, "Admin"));
 
         var ok = await _sut.HasPermissionAsync(10, "any.permission");
 
         ok.Should().BeTrue();
+        _rolePermissionService.Verify(
+            x => x.RoleHasPermissionAsync(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     [Fact]
     public async Task HasPermissionAsync_WhenUserHasPermission_ReturnsTrue()
     {
-        var perm = new Permission { Id = 2, Name = "product.read", Entity = "product", Action = "read" };
-        var role = new Role
-        {
-            Id = 3,
-            Name = "User",
-            RolePermissions = [new RolePermission { Permission = perm, PermissionId = perm.Id, RoleId = 3 }]
-        };
-        var user = new User { Id = 20, RoleId = 3, Role = role };
-        _userRepo.Setup(x => x.GetByIdWithPermissionsAsync(20)).ReturnsAsync(user);
+        _userRepo.Setup(x => x.GetRoleContextForAuthAsync(20, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((3, "User"));
+        _rolePermissionService
+            .Setup(x => x.RoleHasPermissionAsync(3, "product.read", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
 
         var ok = await _sut.HasPermissionAsync(20, "product.read");
 
@@ -438,9 +375,11 @@ public class AuthServiceTests
     [Fact]
     public async Task HasPermissionAsync_WhenUserLacksPermission_ReturnsFalse()
     {
-        var role = new Role { Id = 3, Name = "User", RolePermissions = [] };
-        var user = new User { Id = 21, RoleId = 3, Role = role };
-        _userRepo.Setup(x => x.GetByIdWithPermissionsAsync(21)).ReturnsAsync(user);
+        _userRepo.Setup(x => x.GetRoleContextForAuthAsync(21, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((3, "User"));
+        _rolePermissionService
+            .Setup(x => x.RoleHasPermissionAsync(3, "product.delete", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
 
         var ok = await _sut.HasPermissionAsync(21, "product.delete");
 

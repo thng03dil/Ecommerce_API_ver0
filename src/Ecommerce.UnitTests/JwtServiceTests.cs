@@ -1,5 +1,6 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using Ecommerce.Application.Authorization;
 using Ecommerce.Domain.Common.Settings;
 using Ecommerce.Domain.Entities;
 using Ecommerce.Infrastructure.SecurityHelpers;
@@ -58,6 +59,7 @@ public class JwtServiceTests
         handler.CanReadToken(token).Should().BeTrue();
         var jwt = handler.ReadJwtToken(token);
         jwt.Subject.Should().Be("1");
+        jwt.Claims.Should().Contain(c => c.Type == PermissionAuthConstants.RoleIdClaimType && c.Value == "1");
         jwt.Claims.Should().NotContain(c => c.Type == ClaimTypes.Role);
         jwt.Claims.Should().NotContain(c => c.Type == ClaimTypes.Email);
     }
@@ -83,7 +85,8 @@ public class JwtServiceTests
         jwt.Claims.Should().Contain(c => c.Type == "sid" && c.Value == sid.ToString());
         jwt.Claims.Should().Contain(c => c.Type == "sv" && c.Value == "9");
         jwt.Claims.Should().Contain(c => c.Type == "fp" && c.Value == "fphash");
-        jwt.Claims.Should().NotContain(c => c.Type == ClaimTypes.Role);
+        jwt.Claims.Should().Contain(c => c.Type == PermissionAuthConstants.RoleIdClaimType && c.Value == "2");
+        jwt.Claims.Should().Contain(c => c.Type == ClaimTypes.Role && c.Value == "Admin");
         jwt.Claims.Should().NotContain(c => c.Type == ClaimTypes.Email);
         jwt.Claims.Should().NotContain(c => c.Type == "permissions");
         jwt.Claims.Should().Contain(c => c.Type == JwtRegisteredClaimNames.Jti);

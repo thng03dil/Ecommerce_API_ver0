@@ -7,16 +7,11 @@ namespace Ecommerce.Application.Services.Implementations
 {
     public class UserSessionInvalidationService : IUserSessionInvalidationService
     {
-        private readonly IRefreshTokenRepo _refreshTokenRepo;
         private readonly IUserRepo _userRepo;
         private readonly ICacheService _cacheService;
 
-        public UserSessionInvalidationService(
-            IRefreshTokenRepo refreshTokenRepo,
-            IUserRepo userRepo,
-            ICacheService cacheService)
+        public UserSessionInvalidationService(IUserRepo userRepo, ICacheService cacheService)
         {
-            _refreshTokenRepo = refreshTokenRepo;
             _userRepo = userRepo;
             _cacheService = cacheService;
         }
@@ -27,20 +22,19 @@ namespace Ecommerce.Application.Services.Implementations
             await authLock.WaitAsync(cancellationToken);
             try
             {
-                await _refreshTokenRepo.RevokeAllForUserAsync(userId);
-
                 var user = await _userRepo.GetByIdForUpdateAsync(userId);
                 if (user == null)
                     return;
 
-                var oldSessionVersion = user.SessionVersion;
                 user.SessionVersion += 1;
                 user.CurrentSessionId = null;
-                user.LastLoginIpHash = null;
                 user.LastDeviceId = null;
+                user.LastFingerprintHash = null;
+                user.RefreshTokenHash = null;
+                user.RefreshTokenExpiresAtUtc = null;
 
                 await _userRepo.SaveChangesAsync();
-                await _cacheService.RemoveByPrefixAsync(CacheKeyGenerator.AuthSessionUserPrefix(userId));
+                await _cacheService.RemoveAsync(CacheKeyGenerator.AuthSession(userId));
             }
             finally
             {

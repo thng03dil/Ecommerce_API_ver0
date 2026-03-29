@@ -69,5 +69,20 @@ namespace Ecommerce.Infrastructure.Repositories
         {
             await _context.SaveChangesAsync();
         }
+
+        public async Task<IReadOnlyList<string>> GetPermissionNamesForRoleAsync(
+            int roleId,
+            CancellationToken cancellationToken = default)
+        {
+            return await _context.RolePermissions
+                .AsNoTracking()
+                .Where(rp => rp.RoleId == roleId)
+                .Join(
+                    _context.Permissions.Where(p => !p.IsDeleted),
+                    rp => rp.PermissionId,
+                    p => p.Id,
+                    (rp, p) => p.Name)
+                .ToListAsync(cancellationToken);
+        }
     }
 }

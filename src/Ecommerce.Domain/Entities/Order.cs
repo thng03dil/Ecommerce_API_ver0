@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using Ecommerce.Domain.Enums;
@@ -12,6 +12,11 @@ namespace Ecommerce.Domain.Entities
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public decimal TotalAmount { get; set; }
         public OrderStatus Status { get; set; } = OrderStatus.Pending;
+
+        public string? StripeCheckoutSessionId { get; set; }
+        public string? StripePaymentIntentId { get; set; }
+        public DateTime? PaidAt { get; set; }
+        public DateTime? PaymentExpiresAt { get; set; }
 
         // Navigation property
         public  ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();

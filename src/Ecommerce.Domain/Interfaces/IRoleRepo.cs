@@ -13,5 +13,7 @@ namespace Ecommerce.Domain.Interfaces
         Task AddAsync(Role role);
         Task UpdateAsync(Role role);
         Task SaveChangesAsync();
+
+        Task<IReadOnlyList<string>> GetPermissionNamesForRoleAsync(int roleId, CancellationToken cancellationToken = default);
     }
 }

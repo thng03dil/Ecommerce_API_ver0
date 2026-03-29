@@ -1,4 +1,3 @@
-using Ecommerce.Application.Authorization;
 using Ecommerce.Application.Common.Pagination;
 using Ecommerce.Application.DTOs.CategoryDtos;
 using Ecommerce.Application.Services.Interfaces;
@@ -38,7 +37,7 @@ namespace Ecommerce.API.Controllers
 
             return OkResponse(result);
         }
-        [Permission("category.create")]
+        [Authorize(Policy = "category.create")]
         [HttpPost]                                                                                              
         public async Task<IActionResult> Create(CategoryCreateDto dto)
         {
@@ -46,7 +45,7 @@ namespace Ecommerce.API.Controllers
             var result = await _service.CreateAsync(dto);
             return OkResponse(result);
         }
-        [Permission("category.update")]
+        [Authorize(Policy = "category.update")]
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] CategoryUpdateDto dto)
         {
@@ -55,7 +54,7 @@ namespace Ecommerce.API.Controllers
 
             return OkResponse(result);
         }
-        [Permission("category.delete")]
+        [Authorize(Policy = "category.delete")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {

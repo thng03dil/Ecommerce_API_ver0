@@ -14,27 +14,15 @@ namespace Ecommerce.Domain.Entities
 
         public Guid? CurrentSessionId { get; set; }
 
-        public string? LastLoginIpHash { get; set; }
+        public string? LastFingerprintHash { get; set; }
 
         public string? LastDeviceId { get; set; }
 
-        public string? LastFingerprintHash { get; set; }
+        /// <summary>HMAC-SHA256 hash of the active refresh token plaintext.</summary>
+        public string? RefreshTokenHash { get; set; }
 
-        public ICollection<RefreshToken> RefreshTokens { get; private set; }
-             = new List<RefreshToken>();
-
-        public void AddRefreshToken(RefreshToken token)
-        {
-            RefreshTokens.Add(token);
-        }
-
-        public void RevokeAllTokens()
-        {
-            foreach (var token in RefreshTokens)
-            {
-                token.Revoke();
-            }
-        }
+        /// <summary>UTC expiry of the active refresh token. Null = no active session.</summary>
+        public DateTime? RefreshTokenExpiresAtUtc { get; set; }
     }
 }
 

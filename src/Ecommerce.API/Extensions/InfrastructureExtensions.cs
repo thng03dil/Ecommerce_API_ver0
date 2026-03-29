@@ -114,7 +114,6 @@ public static class InfrastructureExtensions
         services.AddScoped<ICategoryRepo, CategoryRepo>();
         services.AddScoped<IProductRepo, ProductRepo>();
         services.AddScoped<IUserRepo, UserRepo>();
-        services.AddScoped<IRefreshTokenRepo, RefreshTokenRepo>();
         services.AddScoped<IRoleRepo, RoleRepo>();
         services.AddScoped<IPermissionRepo, PermissionRepo>();
         services.AddScoped<IOrderRepo, OrderRepo>();

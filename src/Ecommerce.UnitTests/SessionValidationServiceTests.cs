@@ -16,15 +16,13 @@ public class SessionValidationServiceTests
 {
     private readonly Mock<ICacheService> _cache;
     private readonly Mock<IUserRepo> _userRepo;
-    private readonly Mock<ISecurityFingerprintHelper> _fingerprint;
     private readonly SessionValidationService _sut;
 
     public SessionValidationServiceTests()
     {
         _cache = new Mock<ICacheService>(MockBehavior.Loose);
         _userRepo = new Mock<IUserRepo>(MockBehavior.Loose);
-        _fingerprint = new Mock<ISecurityFingerprintHelper>(MockBehavior.Loose);
-        _sut = new SessionValidationService(_cache.Object, _userRepo.Object, _fingerprint.Object);
+        _sut = new SessionValidationService(_cache.Object, _userRepo.Object);
     }
 
     [Fact]
@@ -139,7 +137,7 @@ public class SessionValidationServiceTests
     [Fact]
     public async Task EnsureAccessTokenSessionValidAsync_CacheHit_StaleSessionVersion_ShouldThrowUnauthorizedException()
     {
-        // Arrange
+        // Arrange: jwt.sv=1, redis.sv=99 → 1 < 99 → outdated AT after refresh
         var userId = 50107;
         var sid = Guid.NewGuid();
         var fp = "fp";
@@ -150,9 +148,9 @@ public class SessionValidationServiceTests
         var act = async () =>
             await _sut.EnsureAccessTokenSessionValidAsync(userId, sid.ToString(), "1", fp, fp);
 
-        // Assert
+        // Assert — new message for jwt.sv < redis.sv path
         (await act.Should().ThrowAsync<UnauthorizedException>())
-            .WithMessage("Invalid session");
+            .WithMessage("Access token is outdated. Please refresh.");
     }
 
     [Fact]
@@ -189,8 +187,8 @@ public class SessionValidationServiceTests
         // Act
         await _sut.EnsureAccessTokenSessionValidAsync(userId, sid.ToString(), sv.ToString(), fp, fp);
 
-        // Assert
-        _cache.Verify(x => x.GetAsync<UserSessionState>(CacheKeyGenerator.AuthSession(userId, sv)), Times.AtLeastOnce);
+        // Assert — single key (no sv suffix)
+        _cache.Verify(x => x.GetAsync<UserSessionState>(CacheKeyGenerator.AuthSession(userId)), Times.AtLeastOnce);
         _userRepo.Verify(x => x.GetUserAuthStateAsync(userId), Times.Once);
     }
 

@@ -1,4 +1,3 @@
-using Ecommerce.Application.Authorization;
 using Ecommerce.Application.Common.Pagination;
 using Ecommerce.Application.DTOs.Role;
 using Ecommerce.Application.Services.Interfaces;
@@ -21,7 +20,7 @@ namespace Ecommerce.API.Controllers
         }
 
         [HttpGet]
-        [Permission("role.read")]
+        [Authorize(Policy = "role.read")]
         public async Task<IActionResult> GetAll([FromQuery] PaginationDto pagination)
         {
             var result = await _roleService.GetAllAsync(pagination);
@@ -29,7 +28,7 @@ namespace Ecommerce.API.Controllers
         }
 
         [HttpGet("{id}")]
-        [Permission("role.read")]
+        [Authorize(Policy = "role.read")]
         public async Task<IActionResult> GetById(int id)
         {
             var result = await _roleService.GetByIdAsync(id);
@@ -37,7 +36,7 @@ namespace Ecommerce.API.Controllers
         }
 
         [HttpPost]
-        [Permission("role.create")]
+        [Authorize(Policy = "role.create")]
         public async Task<IActionResult> Create([FromBody] RoleCreateDto dto)
         {
             var result = await _roleService.CreateAsync(dto);
@@ -45,7 +44,7 @@ namespace Ecommerce.API.Controllers
         }
 
         [HttpPut("{id}")]
-        [Permission("role.update")]
+        [Authorize(Policy = "role.update")]
         public async Task<IActionResult> Update(int id, [FromBody] RoleUpdateDto dto)
         {
             var result = await _roleService.UpdateAsync(id, dto);
@@ -53,7 +52,7 @@ namespace Ecommerce.API.Controllers
         }
 
         [HttpPost("assign-permissions")]
-        [Permission("role.update")] 
+        [Authorize(Policy = "role.update")]
         public async Task<IActionResult> AssignPermissions([FromBody] AssignPermissionsDto dto)
         {
             var result = await _roleService.AssignPermissionsAsync(dto);
@@ -61,7 +60,7 @@ namespace Ecommerce.API.Controllers
         }
 
         [HttpDelete("{id}")]
-        [Permission("role.delete")]
+        [Authorize(Policy = "role.delete")]
         public async Task<IActionResult> Delete(int id)
         {
             var result = await _roleService.DeleteAsync(id);

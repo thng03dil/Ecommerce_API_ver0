@@ -40,10 +40,6 @@ namespace Ecommerce.Infrastructure.Data.Configurations
             builder.Property(x => x.CurrentSessionId)
                 .IsRequired(false);
 
-            builder.Property(x => x.LastLoginIpHash)
-                .HasMaxLength(500)
-                .IsRequired(false);
-
             builder.Property(x => x.LastDeviceId)
                 .HasMaxLength(256)
                 .IsRequired(false);
@@ -52,15 +48,17 @@ namespace Ecommerce.Infrastructure.Data.Configurations
                 .HasMaxLength(500)
                 .IsRequired(false);
 
-            builder.HasOne(u => u.Role)
-                 .WithMany(r => r.Users)       
-                 .HasForeignKey(u => u.RoleId)  
-                 .OnDelete(DeleteBehavior.Restrict);
+            builder.Property(x => x.RefreshTokenHash)
+                .HasMaxLength(500)
+                .IsRequired(false);
 
-            builder.HasMany(x => x.RefreshTokens)
-                  .WithOne(t => t.User)
-                  .HasForeignKey(t => t.UserId)
-                  .OnDelete(DeleteBehavior.Cascade);
+            builder.Property(x => x.RefreshTokenExpiresAtUtc)
+                .IsRequired(false);
+
+            builder.HasOne(u => u.Role)
+                 .WithMany(r => r.Users)
+                 .HasForeignKey(u => u.RoleId)
+                 .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

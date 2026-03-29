@@ -1,3 +1,5 @@
+using Ecommerce.API;
+using Ecommerce.API.BackgroundServices;
 using Ecommerce.API.Extensions;
 using Ecommerce.API.Middleware;
 using Ecommerce.Application.Authorization;
@@ -6,6 +8,7 @@ using Ecommerce.Application.Exceptions;
 using Ecommerce.Application.Services.Implementations;
 using Ecommerce.Application.Services.Interfaces;
 using Ecommerce.Domain.Common.Settings;
+using Stripe;
 using Ecommerce.Domain.Interfaces;
 using Ecommerce.Infrastructure.Data;
 using Ecommerce.Infrastructure.Data.Seed;
@@ -26,6 +29,8 @@ using StackExchange.Redis;
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
+
+DotEnvBootstrap.LoadIfPresent();
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -54,6 +59,11 @@ builder.Services
 
 builder.Services.Configure<AuthSecuritySettings>(
 builder.Configuration.GetSection("AuthSecurity"));
+
+builder.Services.Configure<StripeSettings>(
+    builder.Configuration.GetSection(StripeSettings.SectionName));
+
+builder.Services.AddHostedService<ExpiredPendingOrderCleanupService>();
 
 var fingerprintSecret = builder.Configuration["AuthSecurity:FingerprintSecret"];
 if (string.IsNullOrWhiteSpace(fingerprintSecret))
@@ -98,6 +108,10 @@ builder.Services.AddEndpointsApiExplorer();
 
 var app = builder.Build();
 
+var stripeSecretKey = app.Configuration["Stripe:SecretKey"];
+if (!string.IsNullOrWhiteSpace(stripeSecretKey))
+    StripeConfiguration.ApiKey = stripeSecretKey;
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -128,6 +142,13 @@ app.UseAuthentication();
 app.UseMiddleware<SessionValidationMiddleware>();
 app.UseAuthorization();
 
+app.UseWhen(
+    ctx => string.Equals(ctx.Request.Path.Value, "/api/stripe/webhook", StringComparison.OrdinalIgnoreCase),
+    branch => branch.Use(async (ctx, next) =>
+    {
+        ctx.Request.EnableBuffering();
+        await next();
+    }));
 
 app.MapControllers();
 

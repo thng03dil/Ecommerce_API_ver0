@@ -41,15 +41,15 @@ namespace Ecommerce.UnitTests
         [Fact]
         public void AuthSession_ReturnsCorrectKey()
         {
-            var key = CacheKeyGenerator.AuthSession(100, 7);
-            Assert.Equal("auth:session:user:100:v7", key);
+            var key = CacheKeyGenerator.AuthSession(100);
+            Assert.Equal("auth:session:user:100", key);
         }
 
         [Fact]
-        public void AuthSessionUserPrefix_ReturnsPrefixForPatternDelete()
+        public void AuthSessionUserPrefix_ReturnsUserSessionKey()
         {
             var prefix = CacheKeyGenerator.AuthSessionUserPrefix(100);
-            Assert.Equal("auth:session:user:100:v", prefix);
+            Assert.Equal("auth:session:user:100", prefix);
         }
 
         [Fact]

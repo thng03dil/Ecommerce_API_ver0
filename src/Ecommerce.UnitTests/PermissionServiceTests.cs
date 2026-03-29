@@ -15,7 +15,6 @@ namespace Ecommerce.UnitTests;
 public class PermissionServiceTests
 {
     private readonly Mock<IPermissionRepo> _permissionRepo = new();
-    private readonly Mock<IRoleRepo> _roleRepo = new();
     private readonly Mock<ICacheService> _cacheService = new();
     private readonly PermissionService _sut;
 
@@ -23,7 +22,6 @@ public class PermissionServiceTests
     {
         _sut = new PermissionService(
             _permissionRepo.Object,
-            _roleRepo.Object,
             _cacheService.Object);
     }
 
@@ -156,42 +154,22 @@ public class PermissionServiceTests
     }
 
     [Fact]
-    public async Task CreateAsync_WhenValidAndNoAdminRole_ShouldPersistAndBumpPermissionVersionOnly()
+    public async Task CreateAsync_WhenValid_ShouldPersistAndBumpPermissionVersionOnly()
     {
         _permissionRepo.Setup(x => x.ExistsByEntityActionAsync("cat", "list", null)).ReturnsAsync(false);
         _permissionRepo
             .Setup(x => x.AddAsync(It.IsAny<Permission>()))
             .Callback<Permission>(p => p.Id = 50)
             .Returns(Task.CompletedTask);
-        _roleRepo.Setup(x => x.GetByNameRoleAsync("Admin")).ReturnsAsync((Role?)null);
 
         var result = await _sut.CreateAsync(new PermissionCreateDto { Entity = "cat", Action = "list", Description = "d" });
 
         result.Success.Should().BeTrue();
         result.Data!.Entity.Should().Be("cat");
         _permissionRepo.Verify(x => x.SaveChangesAsync(), Times.Once);
+        _permissionRepo.Verify(x => x.AddRolePermissionAsync(It.IsAny<RolePermission>()), Times.Never);
         _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.PermissionVersionKey()), Times.Once);
         _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.RoleVersionKey()), Times.Never);
-    }
-
-    [Fact]
-    public async Task CreateAsync_WhenAdminExists_ShouldLinkToAdminWithoutSessionInvalidation()
-    {
-        var adminRole = new Role { Id = 1, Name = "Admin" };
-        _permissionRepo.Setup(x => x.ExistsByEntityActionAsync("u", "x", null)).ReturnsAsync(false);
-        _permissionRepo
-            .Setup(x => x.AddAsync(It.IsAny<Permission>()))
-            .Callback<Permission>(p => p.Id = 77)
-            .Returns(Task.CompletedTask);
-        _permissionRepo.Setup(x => x.RolePermissionExistsAsync(1, 77)).ReturnsAsync(false);
-        _roleRepo.Setup(x => x.GetByNameRoleAsync("Admin")).ReturnsAsync(adminRole);
-
-        var result = await _sut.CreateAsync(new PermissionCreateDto { Entity = "U", Action = "X" });
-
-        result.Success.Should().BeTrue();
-        _permissionRepo.Verify(x => x.AddRolePermissionAsync(It.Is<RolePermission>(rp => rp.RoleId == 1 && rp.PermissionId == 77)), Times.Once);
-        _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.PermissionVersionKey()), Times.Once);
-        _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.RoleVersionKey()), Times.Once);
     }
 
     #endregion
@@ -235,6 +213,7 @@ public class PermissionServiceTests
         _cacheService.Verify(x => x.RemoveAsync(CacheKeyGenerator.Permission(2)), Times.Once);
         _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.PermissionVersionKey()), Times.Once);
         _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.RoleVersionKey()), Times.Once);
+        _cacheService.Verify(x => x.RemoveByPrefixAsync(CacheKeyGenerator.RolePermissionCachePrefix()), Times.Once);
     }
 
     #endregion
@@ -266,6 +245,7 @@ public class PermissionServiceTests
         _cacheService.Verify(x => x.RemoveAsync(CacheKeyGenerator.Permission(8)), Times.Once);
         _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.PermissionVersionKey()), Times.Once);
         _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.RoleVersionKey()), Times.Once);
+        _cacheService.Verify(x => x.RemoveByPrefixAsync(CacheKeyGenerator.RolePermissionCachePrefix()), Times.Once);
     }
 
     #endregion
