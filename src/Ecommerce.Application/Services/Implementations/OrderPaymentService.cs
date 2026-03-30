@@ -72,7 +72,7 @@ public class OrderPaymentService : IOrderPaymentService
             return ApiResponse<CheckoutSessionResponseDto>.ErrorResponse("Order is already paid.", 400);
 
         var currency = string.IsNullOrWhiteSpace(_stripe.DefaultCurrency)
-            ? "vnd"
+            ? "usd"
             : _stripe.DefaultCurrency.Trim().ToLowerInvariant();
 
         var lineItems = order.OrderItems.Select(oi =>
@@ -124,12 +124,12 @@ public class OrderPaymentService : IOrderPaymentService
             });
     }
 
-    /// <summary>Stripe smallest currency unit: USD = cents (price × 100); VND = whole units as <c>long</c>.</summary>
+    /// <summary>Stripe smallest currency unit: USD = cents (price × 100); USD = whole units as <c>long</c>.</summary>
     private static long ToStripeUnitAmountSmallest(decimal price, string currency)
     {
         var c = currency.Trim().ToLowerInvariant();
 
-        if (c == "vnd")
+        if (c == "usd")
             return (long)decimal.Round(price, 0, MidpointRounding.AwayFromZero);
 
         if (c == "usd")

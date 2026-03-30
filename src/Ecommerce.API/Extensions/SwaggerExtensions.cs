@@ -20,15 +20,16 @@ namespace Ecommerce.API.Extensions
 
                     var order = controllerName switch
                     {
-                        "Auth" => "1",
-                        "Category" => "2",
-                        "Product" => "3",
-                        "User" => "4",
-                        "Role" => "5",
-                        "Permission" => "6",
-                        "Order" => "7",
-                        "StripeWebhook" => "8",
-                        "AdminOrder" => "9",
+                        "Auth" => "01",
+                        "Category" => "02",
+                        "Product" => "03",
+                        "User" => "04",
+                        "Role" => "05",
+                        "Permission" => "06",
+                        "Order" => "07",
+                        "AdminOrder" => "08",
+                        "StripeWebhook" => "09",
+                        "PaymentCallback" => "10",
 
                         _ => "99"
                     };

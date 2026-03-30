@@ -7,7 +7,7 @@
     {
       "label": "🗄️ EF Add Migration",
       "type": "shell",
-      "command": "dotnet ef migrations add ${input:migrationName} --project Ecommerce.Infrastructure --startup-project .",
+      "command": "dotnet ef migrations add ${input:migrationName} --project src/Ecommerce.Infrastructure --startup-project .",
       "options": { "cwd": "${workspaceFolder}" },
       "presentation": { "reveal": "always", "panel": "shared" },
       "problemMatcher": []
@@ -15,7 +15,7 @@
     {
       "label": "🗄️ EF Update Database",
       "type": "shell",
-      "command": "dotnet ef database update --project Ecommerce.Infrastructure --startup-project .",
+      "command": "dotnet ef database update --project src/Ecommerce.Infrastructure --startup-project .",
       "options": { "cwd": "${workspaceFolder}" },
       "presentation": { "reveal": "always", "panel": "shared" },
       "problemMatcher": []
@@ -23,7 +23,7 @@
     {
       "label": "🗄️ EF Remove Last Migration",
       "type": "shell",
-      "command": "dotnet ef migrations remove --project Ecommerce.Infrastructure --startup-project .",
+      "command": "dotnet ef migrations remove --project src/Ecommerce.Infrastructure --startup-project .",
       "options": { "cwd": "${workspaceFolder}" },
       "presentation": { "reveal": "always", "panel": "shared" },
       "problemMatcher": []
@@ -31,7 +31,7 @@
     {
       "label": "🗄️ EF List Migrations",
       "type": "shell",
-      "command": "dotnet ef migrations list --project Ecommerce.Infrastructure --startup-project .",
+      "command": "dotnet ef migrations list --project src/Ecommerce.Infrastructure --startup-project .",
       "options": { "cwd": "${workspaceFolder}" },
       "presentation": { "reveal": "always", "panel": "shared" },
       "problemMatcher": []
@@ -39,7 +39,7 @@
     {
       "label": "🗄️ EF Reset Database",
       "type": "shell",
-      "command": "dotnet ef database drop --force --project Ecommerce.Infrastructure/Ecommerce.Infrastructure.csproj --startup-project Ecommerce.API.csproj; dotnet ef database update --project Ecommerce.Infrastructure/Ecommerce.Infrastructure.csproj --startup-project Ecommerce.API.csproj",
+      "command": "dotnet ef database drop --force --project src/Ecommerce.Infrastructure/Ecommerce.Infrastructure.csproj --startup-project Ecommerce.API.csproj; dotnet ef database update --project Ecommerce.Infrastructure/Ecommerce.Infrastructure.csproj --startup-project Ecommerce.API.csproj",
       "options": { "cwd": "${workspaceFolder}" },
       "presentation": { "reveal": "always", "panel": "shared" },
       "problemMatcher": []

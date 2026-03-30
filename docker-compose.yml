@@ -1,23 +1,21 @@
-# Chạy local + DB trong Docker:
+# Cập nhật hướng dẫn ở đầu file:
+# Chạy Redis cho Local (Code F5 + SQL máy):
 #   docker compose --profile infra up -d
-# Connection (Development): Server=localhost,1433;... (trùng MSSQL_SA_PASSWORD)
-# Redis: localhost:6379
 #
-# Chạy cả API trong Docker:
-#   docker compose --profile infra --profile api up -d --build
-
+# Chạy Full bộ (API + SQL + Redis trong Docker):
+#   docker compose --profile api up -d --build
 name: ecommerce
 
 services:
   sqlserver:
-    profiles: [infra, api]
+    profiles: [api]
     image: mcr.microsoft.com/mssql/server:2022-latest
     container_name: ecommerce-sql
     environment:
       ACCEPT_EULA: "Y"
       MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-Thao1303@}
     ports:
-      - "1433:1433"
+      - "1434:1433"
     volumes:
       - sqlserver_data:/var/opt/mssql
     healthcheck:
@@ -33,16 +31,25 @@ services:
     networks: [ecommerce]
 
   redis:
-    profiles: [infra, api]
+    profiles: [api]
     image: redis:7-alpine
     container_name: ecommerce-redis
     ports:
-      - "6379:6379"
+      - "6381:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 3s
       timeout: 3s
       retries: 10
+    networks: [ecommerce]
+
+  redis_local:
+    profiles: [infra]
+    image: redis:7-alpine
+    container_name: redis-local
+    restart: always
+    ports:
+      - "6379:6379"
     networks: [ecommerce]
 
   api:
@@ -61,6 +68,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
+
       ConnectionStrings__DefaultConnection: >-
         Server=sqlserver,1433;Database=EcommerceDb;User Id=sa;Password=${MSSQL_SA_PASSWORD:-Thao1303@};TrustServerCertificate=True;MultipleActiveResultSets=true;
       Caching__Provider: Redis
@@ -69,12 +77,13 @@ services:
       Jwt__Key: ${Jwt__Key:?set Jwt__Key in .env}
       AuthSecurity__FingerprintSecret: ${AuthSecurity__FingerprintSecret:?}
       AuthSecurity__DeviceBindingSecret: ${AuthSecurity__DeviceBindingSecret:?}
+      
       Stripe__SecretKey: ${Stripe__SecretKey:-}
       Stripe__WebhookSecret: ${Stripe__WebhookSecret:-}
       Stripe__PublishableKey: ${Stripe__PublishableKey:-}
-      Stripe__DefaultCurrency: ${Stripe__DefaultCurrency:-vnd}
-      Stripe__SuccessUrl: ${Stripe__SuccessUrl:-}
-      Stripe__CancelUrl: ${Stripe__CancelUrl:-}
+      Stripe__DefaultCurrency: ${Stripe__DefaultCurrency:-usd}
+      Stripe__SuccessUrl: http://localhost:8080/api/payment-callback/success?session_id={CHECKOUT_SESSION_ID}
+      Stripe__CancelUrl: http://localhost:8080/api/payment-callback/cancel
     networks: [ecommerce]
 
 volumes:

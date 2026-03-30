@@ -7,9 +7,6 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Ecommerce.API.Controllers;
 
-/// <summary>
-/// Không kế thừa <see cref="BaseController"/> để tránh áp dụng thêm route <c>api/[controller]</c> (AdminOrder).
-/// </summary>
 [Authorize]
 [Route("api/admin/orders")]
 [ApiController]
@@ -23,7 +20,7 @@ public class AdminOrderController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize(Policy = "order.manage_read")]
+    [Authorize(Policy = "order.manage.read")]
     public async Task<IActionResult> GetAll([FromQuery] PaginationDto pagination)
     {
         var result = await _orderAdminService.GetAllOrdersAsync(pagination);
@@ -31,7 +28,7 @@ public class AdminOrderController : ControllerBase
     }
 
     [HttpGet("user/{userId:int}")]
-    [Authorize(Policy = "order.manage_read")]
+    [Authorize(Policy = "order.manage.read")]
     public async Task<IActionResult> GetByUser(int userId, [FromQuery] PaginationDto pagination)
     {
         var result = await _orderAdminService.GetOrdersByUserAsync(userId, pagination);
@@ -39,7 +36,7 @@ public class AdminOrderController : ControllerBase
     }
 
     [HttpGet("{id:int}")]
-    [Authorize(Policy = "order.manage_read")]
+    [Authorize(Policy = "order.manage.read")]
     public async Task<IActionResult> GetDetail(int id)
     {
         var result = await _orderAdminService.GetOrderDetailAsync(id);
@@ -47,7 +44,7 @@ public class AdminOrderController : ControllerBase
     }
 
     [HttpPut("{id:int}/status")]
-    [Authorize(Policy = "order.manage_update")]
+    [Authorize(Policy = "order.manage.update")]
     public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateOrderStatusRequestDto request)
     {
         var result = await _orderAdminService.UpdateStatusAsync(id, request);
