@@ -49,21 +49,22 @@ namespace Ecommerce.Infrastructure.Repositories
         public async Task<Role?> GetByNameRoleAsync(string nameRole)
         {
             return await _context.Roles
-                .FirstOrDefaultAsync(r => r.Name == nameRole);
+                .FirstOrDefaultAsync(r => r.Name == nameRole && !r.IsDeleted);
         }
         public async Task<bool> ExistsByNameAsync(string name)
         {
             return await _context.Roles
-                .AnyAsync(r => r.Name.ToLower() == name.ToLower());
+                .AnyAsync(r => !r.IsDeleted && r.Name.ToLower() == name.ToLower());
         }
         public async Task AddAsync(Role role)
         {
             await _context.Roles.AddAsync(role);
         }
-        public async Task UpdateAsync(Role role)
+        /// <summary>Marks the role as modified; caller must <see cref="SaveChangesAsync"/> (e.g. after update, or inside a unit-of-work transaction).</summary>
+        public Task UpdateAsync(Role role)
         {
             _context.Roles.Update(role);
-            await _context.SaveChangesAsync();
+            return Task.CompletedTask;
         }
         public async Task SaveChangesAsync()
         {

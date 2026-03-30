@@ -65,14 +65,13 @@ public class OrderRepo : IOrderRepo
             }
 
             var total = lineDetails.Sum(x => x.Price * x.Quantity);
-            var paymentExpiresAt = DateTime.UtcNow.AddDays(1);
             var order = new Order
             {
                 UserId = userId,
                 TotalAmount = total,
                 Status = OrderStatus.Pending,
-                CreatedAt = DateTime.UtcNow,
-                PaymentExpiresAt = paymentExpiresAt
+                PaymentStatus = PaymentStatus.NotPaid,
+                CreatedAt = DateTime.UtcNow
             };
 
             _context.Orders.Add(order);
@@ -92,7 +91,7 @@ public class OrderRepo : IOrderRepo
             await _context.SaveChangesAsync(cancellationToken);
             await tx.CommitAsync(cancellationToken);
 
-            return OrderPlaceResult.Ok(order.Id, total, order.CreatedAt, paymentExpiresAt);
+            return OrderPlaceResult.Ok(order.Id, total, order.CreatedAt);
         }
         catch
         {
@@ -117,6 +116,8 @@ public class OrderRepo : IOrderRepo
     {
         return await _context.Orders
             .AsNoTracking()
+            .Include(o => o.OrderItems)
+            .ThenInclude(i => i.Product)
             .Where(o => o.UserId == userId)
             .OrderByDescending(o => o.CreatedAt)
             .ToListAsync(cancellationToken);
@@ -130,7 +131,10 @@ public class OrderRepo : IOrderRepo
     {
         var order = await _context.Orders
             .FirstOrDefaultAsync(
-                o => o.Id == orderId && o.UserId == userId && o.Status == OrderStatus.Pending,
+                o => o.Id == orderId
+                    && o.UserId == userId
+                    && o.Status == OrderStatus.Pending
+                    && o.PaymentStatus != PaymentStatus.Succeeded,
                 cancellationToken);
 
         if (order == null)
@@ -159,6 +163,7 @@ public class OrderRepo : IOrderRepo
             return false;
 
         order.Status = OrderStatus.Paid;
+        order.PaymentStatus = PaymentStatus.Succeeded;
         order.PaidAt = DateTime.UtcNow;
         if (!string.IsNullOrEmpty(paymentIntentId))
             order.StripePaymentIntentId = paymentIntentId;
@@ -167,71 +172,116 @@ public class OrderRepo : IOrderRepo
         return true;
     }
 
-    public async Task<int> CancelExpiredPendingOrdersAndRestockAsync(CancellationToken cancellationToken = default)
+    public async Task<(IReadOnlyList<Order> Items, int TotalCount)> GetAllPagedAsync(
+        int pageNumber,
+        int pageSize,
+        CancellationToken cancellationToken = default)
     {
-        var now = DateTime.UtcNow;
-        var expiredIds = await _context.Orders
-            .AsNoTracking()
-            .Where(o =>
-                o.Status == OrderStatus.Pending
-                && o.PaymentExpiresAt != null
-                && o.PaymentExpiresAt < now)
-            .Select(o => o.Id)
+        var query = _context.Orders.AsNoTracking().OrderByDescending(o => o.CreatedAt);
+        var total = await query.CountAsync(cancellationToken);
+        var items = await query
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .Include(o => o.OrderItems)
+            .ThenInclude(i => i.Product)
             .ToListAsync(cancellationToken);
+        return (items, total);
+    }
 
-        var cancelled = 0;
-        foreach (var orderId in expiredIds)
+    public async Task<Order?> GetByIdWithItemsAndProductsAsync(int orderId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Orders
+            .AsNoTracking()
+            .Include(o => o.OrderItems)
+            .ThenInclude(i => i.Product)
+            .FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken);
+    }
+
+    public async Task<(IReadOnlyList<Order> Items, int TotalCount)> ListForUserPagedAsync(
+        int userId,
+        int pageNumber,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        var query = _context.Orders
+            .AsNoTracking()
+            .Where(o => o.UserId == userId)
+            .OrderByDescending(o => o.CreatedAt);
+        var total = await query.CountAsync(cancellationToken);
+        var items = await query
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .Include(o => o.OrderItems)
+            .ThenInclude(i => i.Product)
+            .ToListAsync(cancellationToken);
+        return (items, total);
+    }
+
+    public async Task<Order?> GetByIdTrackedAsync(int orderId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Orders.FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken);
+    }
+
+    public async Task<bool> TryUpdateStatusAsync(int orderId, OrderStatus newStatus, CancellationToken cancellationToken = default)
+    {
+        var order = await _context.Orders.FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken);
+        if (order == null)
+            return false;
+
+        order.Status = newStatus;
+        await _context.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
+    public async Task<OrderCancelResult> TryCancelPendingOrderForUserAsync(
+        int orderId,
+        int userId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var tx = await _context.Database.BeginTransactionAsync(cancellationToken);
+        try
         {
-            await using var tx = await _context.Database.BeginTransactionAsync(cancellationToken);
-            try
-            {
-                var order = await _context.Orders
-                    .Include(o => o.OrderItems)
-                    .FirstOrDefaultAsync(
-                        o => o.Id == orderId && o.Status == OrderStatus.Pending,
-                        cancellationToken);
+            var order = await _context.Orders
+                .Include(o => o.OrderItems)
+                .FirstOrDefaultAsync(o => o.Id == orderId && o.UserId == userId, cancellationToken);
 
-                if (order == null || order.PaymentExpiresAt == null || order.PaymentExpiresAt >= now)
-                {
-                    await tx.RollbackAsync(cancellationToken);
-                    continue;
-                }
-
-                var restockOk = true;
-                foreach (var line in order.OrderItems)
-                {
-                    // Restock even if the product was soft-deleted after the order was placed.
-                    var rows = await _context.Products
-                        .Where(p => p.Id == line.ProductId)
-                        .ExecuteUpdateAsync(
-                            s => s.SetProperty(p => p.Stock, p => p.Stock + line.Quantity),
-                            cancellationToken);
-
-                    if (rows == 0)
-                    {
-                        restockOk = false;
-                        break;
-                    }
-                }
-
-                if (!restockOk)
-                {
-                    await tx.RollbackAsync(cancellationToken);
-                    continue;
-                }
-
-                order.Status = OrderStatus.Cancelled;
-                await _context.SaveChangesAsync(cancellationToken);
-                await tx.CommitAsync(cancellationToken);
-                cancelled++;
-            }
-            catch
+            if (order == null)
             {
                 await tx.RollbackAsync(cancellationToken);
-                throw;
+                return OrderCancelResult.Fail(OrderCancelFailure.NotFound);
             }
-        }
 
-        return cancelled;
+            if (order.Status != OrderStatus.Pending || order.PaymentStatus == PaymentStatus.Succeeded)
+            {
+                await tx.RollbackAsync(cancellationToken);
+                return OrderCancelResult.Fail(OrderCancelFailure.NotCancellable);
+            }
+
+            foreach (var item in order.OrderItems)
+            {
+                await _context.Products
+                    .Where(p => p.Id == item.ProductId)
+                    .ExecuteUpdateAsync(
+                        s => s.SetProperty(p => p.Stock, p => p.Stock + item.Quantity),
+                        cancellationToken);
+            }
+
+            order.Status = OrderStatus.Cancelled;
+            await _context.SaveChangesAsync(cancellationToken);
+            await tx.CommitAsync(cancellationToken);
+
+            return OrderCancelResult.Ok(
+                order.Id,
+                order.UserId,
+                order.TotalAmount,
+                order.CreatedAt,
+                order.PaidAt,
+                order.PaymentStatus);
+        }
+        catch
+        {
+            await tx.RollbackAsync(cancellationToken);
+            throw;
+        }
     }
 }

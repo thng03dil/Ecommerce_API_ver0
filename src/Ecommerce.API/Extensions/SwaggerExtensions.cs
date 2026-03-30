@@ -26,6 +26,10 @@ namespace Ecommerce.API.Extensions
                         "User" => "4",
                         "Role" => "5",
                         "Permission" => "6",
+                        "Order" => "7",
+                        "StripeWebhook" => "8",
+                        "AdminOrder" => "9",
+
                         _ => "99"
                     };
 

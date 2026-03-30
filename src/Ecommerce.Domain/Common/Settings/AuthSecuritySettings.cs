@@ -4,5 +4,6 @@ namespace Ecommerce.Domain.Common.Settings
     public class AuthSecuritySettings
     {
         public string FingerprintSecret { get; set; } = string.Empty;
+        public string DeviceBindingSecret { get; set; } = string.Empty;
     }
 }

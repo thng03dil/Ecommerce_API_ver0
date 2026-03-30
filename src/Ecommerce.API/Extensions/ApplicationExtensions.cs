@@ -19,6 +19,7 @@ namespace Ecommerce.API.Extensions
             services.AddScoped<IPermissionService, PermissionService>();
             services.AddScoped<IOrderService, OrderService>();
             services.AddScoped<IOrderPaymentService, OrderPaymentService>();
+            services.AddScoped<IOrderAdminService, OrderAdminService>();
             services.AddScoped<IDeviceService, DeviceService>();
             services.AddScoped<IUserSessionInvalidationService, UserSessionInvalidationService>();
             services.AddScoped<ISessionValidationService, SessionValidationService>();

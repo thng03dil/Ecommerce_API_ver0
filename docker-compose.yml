@@ -1,0 +1,85 @@
+# Chạy local + DB trong Docker:
+#   docker compose --profile infra up -d
+# Connection (Development): Server=localhost,1433;... (trùng MSSQL_SA_PASSWORD)
+# Redis: localhost:6379
+#
+# Chạy cả API trong Docker:
+#   docker compose --profile infra --profile api up -d --build
+
+name: ecommerce
+
+services:
+  sqlserver:
+    profiles: [infra, api]
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: ecommerce-sql
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-Thao1303@}
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q \"SELECT 1\" -b -o /dev/null || exit 1",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 40s
+    networks: [ecommerce]
+
+  redis:
+    profiles: [infra, api]
+    image: redis:7-alpine
+    container_name: ecommerce-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+    networks: [ecommerce]
+
+  api:
+    profiles: [api]
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ecommerce-api
+    depends_on:
+      sqlserver: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: >-
+        Server=sqlserver,1433;Database=EcommerceDb;User Id=sa;Password=${MSSQL_SA_PASSWORD:-Thao1303@};TrustServerCertificate=True;MultipleActiveResultSets=true;
+      Caching__Provider: Redis
+      Redis__ConnectionString: redis:6379
+      Redis__InstanceName: "Ecommerce:"
+      Jwt__Key: ${Jwt__Key:?set Jwt__Key in .env}
+      AuthSecurity__FingerprintSecret: ${AuthSecurity__FingerprintSecret:?}
+      AuthSecurity__DeviceBindingSecret: ${AuthSecurity__DeviceBindingSecret:?}
+      Stripe__SecretKey: ${Stripe__SecretKey:-}
+      Stripe__WebhookSecret: ${Stripe__WebhookSecret:-}
+      Stripe__PublishableKey: ${Stripe__PublishableKey:-}
+      Stripe__DefaultCurrency: ${Stripe__DefaultCurrency:-vnd}
+      Stripe__SuccessUrl: ${Stripe__SuccessUrl:-}
+      Stripe__CancelUrl: ${Stripe__CancelUrl:-}
+    networks: [ecommerce]
+
+volumes:
+  sqlserver_data:
+
+networks:
+  ecommerce:
+    driver: bridge

@@ -26,6 +26,7 @@ namespace Ecommerce.Domain.Interfaces
         /// <summary>User chưa xóa mềm đang gán role này.</summary>
         Task<IReadOnlyList<int>> GetActiveUserIdsByRoleIdAsync(int roleId, CancellationToken cancellationToken = default);
 
+        /// <summary>Adds user to context; does not save. Caller saves or uses <c>IUnitOfWork</c>.</summary>
         Task AddAsync(User user);
         Task SaveChangesAsync();
         Task UpdateAsync(User user);

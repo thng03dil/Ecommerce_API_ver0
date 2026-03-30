@@ -11,8 +11,10 @@ namespace Ecommerce.Infrastructure.Data.Seed
         {
             var userPermNames = new List<string>
             {
-                "product.read",
-                "category.read"
+                "order.read",
+                "order.create",
+                "order.cancel",
+                "order.checkout"
             };
 
             var userPermIds = await context.Permissions
@@ -33,7 +35,7 @@ namespace Ecommerce.Infrastructure.Data.Seed
 
             await context.SaveChangesAsync();
 
-            if (!await context.Users.AnyAsync(u => u.Email == "admin@example.com"))
+            if (!await context.Users.AnyAsync(u => u.Email == "admin@example.com" && !u.IsDeleted))
             {
                 context.Users.Add(new User
                 {

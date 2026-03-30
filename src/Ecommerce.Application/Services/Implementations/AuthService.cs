@@ -30,6 +30,7 @@ namespace Ecommerce.Application.Services.Implementations
         private readonly ITokenBlacklistService _tokenBlacklist;
         private readonly IUserSessionInvalidationService _sessionInvalidation;
         private readonly IRolePermissionService _rolePermissionService;
+        private readonly IUnitOfWork _unitOfWork;
 
         public AuthService(
             IUserRepo userRepo,
@@ -42,7 +43,8 @@ namespace Ecommerce.Application.Services.Implementations
             ISecurityFingerprintHelper fingerprint,
             ITokenBlacklistService tokenBlacklist,
             IUserSessionInvalidationService sessionInvalidation,
-            IRolePermissionService rolePermissionService)
+            IRolePermissionService rolePermissionService,
+            IUnitOfWork unitOfWork)
         {
             _userRepo = userRepo;
             _roleRepo = roleRepo;
@@ -55,26 +57,31 @@ namespace Ecommerce.Application.Services.Implementations
             _tokenBlacklist = tokenBlacklist;
             _sessionInvalidation = sessionInvalidation;
             _rolePermissionService = rolePermissionService;
+            _unitOfWork = unitOfWork;
         }
 
         public async Task RegisterAsync(RegisterDto request)
         {
-            var exist = await _userRepo.GetByEmailAsync(request.Email);
-            if (exist != null) throw new ConflictException("Email already exists");
-
-            var defaultRole = await _roleRepo.GetByNameRoleAsync("User");
-            if (defaultRole == null)
-                throw new Exception("System role configuration error: default 'User' role is missing. Check database seed.");
-
-            var user = new User
+            await _unitOfWork.ExecuteInTransactionAsync(async () =>
             {
-                Email = request.Email,
-                PasswordHash = _passwordHasher.Hash(request.Password),
-                RoleId = defaultRole.Id,
-                CreatedAt = DateTime.UtcNow
-            };
+                var exist = await _userRepo.GetByEmailAsync(request.Email);
+                if (exist != null) throw new ConflictException("Email already exists");
 
-            await _userRepo.AddAsync(user);
+                var defaultRole = await _roleRepo.GetByNameRoleAsync("User");
+                if (defaultRole == null)
+                    throw new Exception("System role configuration error: default 'User' role is missing. Check database seed.");
+
+                var user = new User
+                {
+                    Email = request.Email,
+                    PasswordHash = _passwordHasher.Hash(request.Password),
+                    RoleId = defaultRole.Id,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                await _userRepo.AddAsync(user);
+                return true;
+            });
         }
 
         public async Task<AuthResponseDto> LoginAsync(LoginDto request)
@@ -109,28 +116,29 @@ namespace Ecommerce.Application.Services.Implementations
             await authLock.WaitAsync();
             try
             {
-                var user = await _userRepo.GetByIdForUpdateAsync(userForCred.Id);
-                if (user == null)
-                    throw new NotFoundException("User not found");
+                var (user, sessionId, refreshPlain, fingerprintHash) = await _unitOfWork.ExecuteInTransactionAsync(async () =>
+                {
+                    var u = await _userRepo.GetByIdForUpdateAsync(userForCred.Id);
+                    if (u == null)
+                        throw new NotFoundException("User not found");
 
-                var fingerprintHash = _fingerprint.ComputeFingerprint(deviceId);
-                var sessionId = Guid.NewGuid();
-                user.SessionVersion += 1;
-                user.CurrentSessionId = sessionId;
-                user.LastDeviceId = deviceId;
-                user.LastFingerprintHash = fingerprintHash;
+                    var fp = _fingerprint.ComputeFingerprint(deviceId);
+                    var sid = Guid.NewGuid();
+                    u.SessionVersion += 1;
+                    u.CurrentSessionId = sid;
+                    u.LastDeviceId = deviceId;
+                    u.LastFingerprintHash = fp;
 
-                // Generate RT and store hash directly on User (single active session)
-                var refreshPlain = _jwtService.GenerateRefreshToken();
-                var refreshHash = _jwtService.HashToken(refreshPlain);
-                user.RefreshTokenHash = refreshHash;
-                user.RefreshTokenExpiresAtUtc = DateTime.UtcNow.AddDays(_jwtSettings.RefreshTokenDays);
+                    var refreshPlaintext = _jwtService.GenerateRefreshToken();
+                    var refreshHash = _jwtService.HashToken(refreshPlaintext);
+                    u.RefreshTokenHash = refreshHash;
+                    u.RefreshTokenExpiresAtUtc = DateTime.UtcNow.AddDays(_jwtSettings.RefreshTokenDays);
 
-                await _userRepo.SaveChangesAsync();
+                    return (u, sid, refreshPlaintext, fp);
+                });
 
                 var accessToken = _jwtService.GenerateAccessToken(user, sessionId, user.SessionVersion, fingerprintHash);
 
-                // Write (overwrite) single Redis session key
                 await _cacheService.SetAsync(
                     CacheKeyGenerator.AuthSession(user.Id),
                     new UserSessionState
@@ -179,32 +187,36 @@ namespace Ecommerce.Application.Services.Implementations
             await authLock.WaitAsync();
             try
             {
-                var user = await _userRepo.GetByIdForUpdateAsync(userId);
-                if (user == null)
-                    throw new NotFoundException("User not found");
+                var user = await _unitOfWork.ExecuteInTransactionAsync(async () =>
+                {
+                    var u = await _userRepo.GetByIdForUpdateAsync(userId);
+                    if (u == null)
+                        throw new NotFoundException("User not found");
 
-                // Fingerprint must match the bound device/IP
-                if (user.LastFingerprintHash != currentFingerprint)
-                    throw new UnauthorizedException("Session fingerprint mismatch. Please log in again.");
+                    if (u.LastFingerprintHash != currentFingerprint)
+                        throw new UnauthorizedException("Session fingerprint mismatch. Please log in again.");
 
-                // AT must belong to the current session version (exact: refresh uses current sv)
-                if (user.SessionVersion != sessionVersionClaim)
-                    throw new UnauthorizedException("Access token is outdated. Please log in again.");
+                    if (u.SessionVersion != sessionVersionClaim)
+                        throw new UnauthorizedException("Access token is outdated. Please log in again.");
 
-                // Session id must match
-                if (user.CurrentSessionId != sessionId)
-                    throw new UnauthorizedException("Invalid session.");
+                    if (u.CurrentSessionId != sessionId)
+                        throw new UnauthorizedException("Invalid session.");
 
-                // Validate RT
-                var rtHash = _jwtService.HashToken(request.RefreshToken);
+                    var rtHash = _jwtService.HashToken(request.RefreshToken);
 
-                if (user.RefreshTokenHash != rtHash)
-                    throw new UnauthorizedException("Invalid refresh token");
+                    if (u.RefreshTokenHash != rtHash)
+                        throw new UnauthorizedException("Invalid refresh token");
 
-                if (user.RefreshTokenExpiresAtUtc == null || user.RefreshTokenExpiresAtUtc <= DateTime.UtcNow)
-                    throw new UnauthorizedException("Refresh token expired. Please log in again.");
+                    if (u.RefreshTokenExpiresAtUtc == null || u.RefreshTokenExpiresAtUtc <= DateTime.UtcNow)
+                        throw new UnauthorizedException("Refresh token expired. Please log in again.");
 
-                // Blacklist current AT JTI if it still has remaining lifetime
+                    u.SessionVersion += 1;
+                    u.LastDeviceId = deviceId ?? string.Empty;
+                    u.LastFingerprintHash = currentFingerprint;
+
+                    return u;
+                });
+
                 if (!string.IsNullOrEmpty(jti))
                 {
                     var remaining = _jwtService.GetAccessTokenRemainingLifetime(request.AccessToken);
@@ -212,16 +224,8 @@ namespace Ecommerce.Application.Services.Implementations
                         await _tokenBlacklist.BlacklistAsync(_jwtService.HashToken(jti), remaining.Value);
                 }
 
-                // Rotate session version to invalidate old AT in middleware sv check
-                user.SessionVersion += 1;
-                user.LastDeviceId = deviceId ?? string.Empty;
-                user.LastFingerprintHash = currentFingerprint;
-
-                await _userRepo.SaveChangesAsync();
-
                 var newAccessToken = _jwtService.GenerateAccessToken(user, sessionId, user.SessionVersion, currentFingerprint);
 
-                // Overwrite Redis with new sv (old AT will fail jwt.sv < redis.sv check)
                 await _cacheService.SetAsync(
                     CacheKeyGenerator.AuthSession(userId),
                     new UserSessionState
@@ -230,12 +234,12 @@ namespace Ecommerce.Application.Services.Implementations
                         SessionVersion = user.SessionVersion,
                         FingerprintHash = currentFingerprint
                     },
-                    user.RefreshTokenExpiresAtUtc.Value - DateTime.UtcNow);
+                    user.RefreshTokenExpiresAtUtc!.Value - DateTime.UtcNow);
 
                 return new AuthResponseDto
                 {
                     AccessToken = newAccessToken,
-                    RefreshToken = request.RefreshToken, // RT unchanged — sticky
+                    RefreshToken = request.RefreshToken,
                     ExpiresIn = _jwtSettings.ExpiryMinutes * 60
                 };
             }

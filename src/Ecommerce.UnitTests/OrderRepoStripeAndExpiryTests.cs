@@ -29,6 +29,7 @@ public class OrderRepoStripeAndExpiryTests
             UserId = 1,
             TotalAmount = 10m,
             Status = OrderStatus.Pending,
+            PaymentStatus = PaymentStatus.NotPaid,
             CreatedAt = DateTime.UtcNow,
             StripeCheckoutSessionId = "cs_test_123"
         });
@@ -46,6 +47,7 @@ public class OrderRepoStripeAndExpiryTests
         order.Status.Should().Be(OrderStatus.Paid);
         order.PaidAt.Should().NotBeNull();
         order.StripePaymentIntentId.Should().Be("pi_test_1");
+        order.PaymentStatus.Should().Be(PaymentStatus.Succeeded);
     }
 
     [Fact]
@@ -58,6 +60,4 @@ public class OrderRepoStripeAndExpiryTests
 
         ok.Should().BeFalse();
     }
-
-    // CancelExpiredPendingOrdersAndRestockAsync uses ExecuteUpdateAsync (SQL Server); InMemory provider does not support it — verify against a real DB or integration test.
 }

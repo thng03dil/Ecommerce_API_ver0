@@ -1,5 +1,6 @@
 using Ecommerce.Domain.Common;
 using Ecommerce.Domain.Entities;
+using Ecommerce.Domain.Enums;
 
 namespace Ecommerce.Domain.Interfaces;
 
@@ -25,8 +26,25 @@ public interface IOrderRepo
     /// </summary>
     Task<bool> TryMarkPaidByStripeSessionAsync(string stripeCheckoutSessionId, string? paymentIntentId, CancellationToken cancellationToken = default);
 
+    Task<(IReadOnlyList<Order> Items, int TotalCount)> GetAllPagedAsync(int pageNumber, int pageSize, CancellationToken cancellationToken = default);
+
+    Task<Order?> GetByIdWithItemsAndProductsAsync(int orderId, CancellationToken cancellationToken = default);
+
+    Task<(IReadOnlyList<Order> Items, int TotalCount)> ListForUserPagedAsync(
+        int userId,
+        int pageNumber,
+        int pageSize,
+        CancellationToken cancellationToken = default);
+
+    Task<Order?> GetByIdTrackedAsync(int orderId, CancellationToken cancellationToken = default);
+
+    Task<bool> TryUpdateStatusAsync(int orderId, OrderStatus newStatus, CancellationToken cancellationToken = default);
+
     /// <summary>
-    /// Cancels pending orders past <see cref="Order.PaymentExpiresAt"/> and restores product stock.
+    /// Hủy đơn Pending chưa thanh toán: hoàn kho, đặt <see cref="OrderStatus.Cancelled"/>.
     /// </summary>
-    Task<int> CancelExpiredPendingOrdersAndRestockAsync(CancellationToken cancellationToken = default);
+    Task<OrderCancelResult> TryCancelPendingOrderForUserAsync(
+        int orderId,
+        int userId,
+        CancellationToken cancellationToken = default);
 }

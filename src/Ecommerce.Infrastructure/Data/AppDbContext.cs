@@ -23,16 +23,25 @@ namespace Ecommerce.Infrastructure.Data
         {
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
 
-            // Global soft-delete filter for all entities inheriting BaseEntity.
+            // Global soft-delete filter for BaseEntity types except principals listed below (avoid EF warning
+            // when dependent has no matching filter — Include / FK inconsistencies).
             foreach (var entityType in modelBuilder.Model.GetEntityTypes())
             {
-                if (typeof(BaseEntity).IsAssignableFrom(entityType.ClrType))
-                {
-                    var parameter = Expression.Parameter(entityType.ClrType, "e");
-                    var isDeletedProperty = Expression.Property(parameter, nameof(BaseEntity.IsDeleted));
-                    var filter = Expression.Lambda(Expression.Equal(isDeletedProperty, Expression.Constant(false)), parameter);
-                    modelBuilder.Entity(entityType.ClrType).HasQueryFilter(filter);
-                }
+                if (!typeof(BaseEntity).IsAssignableFrom(entityType.ClrType))
+                    continue;
+
+                // User, Product: Order / OrderItem. Category: Product. Role: User.
+                // Lọc !IsDeleted thủ công trong repository cho các type này.
+                if (entityType.ClrType == typeof(User)
+                    || entityType.ClrType == typeof(Product)
+                    || entityType.ClrType == typeof(Category)
+                    || entityType.ClrType == typeof(Role))
+                    continue;
+
+                var parameter = Expression.Parameter(entityType.ClrType, "e");
+                var isDeletedProperty = Expression.Property(parameter, nameof(BaseEntity.IsDeleted));
+                var filter = Expression.Lambda(Expression.Equal(isDeletedProperty, Expression.Constant(false)), parameter);
+                modelBuilder.Entity(entityType.ClrType).HasQueryFilter(filter);
             }
               
             base.OnModelCreating(modelBuilder);

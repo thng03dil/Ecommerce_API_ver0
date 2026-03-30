@@ -11,5 +11,5 @@ public class StripeSettings
     public string? PublishableKey { get; set; }
 
     /// <summary>ISO currency code for Checkout (e.g. usd, vnd).</summary>
-    public string DefaultCurrency { get; set; } = "usd";
+    public string DefaultCurrency { get; set; } = "vnd";
 }

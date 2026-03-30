@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Threading;
 using Ecommerce.Application.Common.Caching;
 using Ecommerce.Application.Common.Pagination;
@@ -26,6 +27,18 @@ public class RoleServiceTests
 
     public RoleServiceTests()
     {
+        _unitOfWork
+            .Setup(x => x.ExecuteInTransactionAsync(It.IsAny<Func<Task<Role>>>(), It.IsAny<CancellationToken>()))
+            .Returns<Func<Task<Role>>, CancellationToken>((fn, _) => fn());
+        _unitOfWork
+            .Setup(x => x.ExecuteInTransactionAsync(It.IsAny<Func<Task<bool>>>(), It.IsAny<CancellationToken>()))
+            .Returns<Func<Task<bool>>, CancellationToken>((fn, _) => fn());
+        _unitOfWork
+            .Setup(x => x.ExecuteInTransactionAsync(It.IsAny<Func<Task<IReadOnlyList<int>>>>(), It.IsAny<CancellationToken>()))
+            .Returns<Func<Task<IReadOnlyList<int>>>, CancellationToken>((fn, _) => fn());
+
+        _roleRepo.Setup(x => x.SaveChangesAsync()).Returns(Task.CompletedTask);
+
         _sut = new RoleService(
             _roleRepo.Object,
             _permissionRepo.Object,
@@ -270,6 +283,7 @@ public class RoleServiceTests
 
         result.Success.Should().BeTrue();
         _roleRepo.Verify(x => x.UpdateAsync(role), Times.Once);
+        _roleRepo.Verify(x => x.SaveChangesAsync(), Times.Once);
         _cacheService.Verify(x => x.RemoveAsync(CacheKeyGenerator.Role(7)), Times.Once);
         _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.RoleVersionKey()), Times.Once);
     }
@@ -430,10 +444,6 @@ public class RoleServiceTests
         _roleRepo.Setup(x => x.GetByIdAsync(roleId)).ReturnsAsync(roleToDelete);
         _roleRepo.Setup(x => x.GetByNameRoleAsync("User")).ReturnsAsync(defaultRole);
         _userRepo.Setup(x => x.ReassignUsersToRoleAsync(roleId, defaultRoleId)).ReturnsAsync(affectedUsers);
-
-        _unitOfWork
-            .Setup(x => x.ExecuteInTransactionAsync(It.IsAny<Func<Task<IReadOnlyList<int>>>>(), It.IsAny<CancellationToken>()))
-            .Returns<Func<Task<IReadOnlyList<int>>>, CancellationToken>((fn, _) => fn());
 
         var result = await _sut.DeleteAsync(roleId);
 

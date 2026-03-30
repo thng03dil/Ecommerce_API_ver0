@@ -1,5 +1,8 @@
 using Ecommerce.Application.Common.Caching;
 using Ecommerce.Application.DTOs.OrderDtos;
+using Ecommerce.Application.Exceptions;
+using Ecommerce.Domain.Entities;
+using Ecommerce.Domain.Enums;
 using Ecommerce.Application.Services.Implementations;
 using Ecommerce.Application.Services.Interfaces;
 using Ecommerce.Domain.Common;
@@ -24,7 +27,7 @@ public class OrderServiceTests
     [Fact]
     public async Task PlaceOrderAsync_WhenUserIdInvalid_ShouldReturnErrorWithoutCallingRepo()
     {
-        var dto = new CreateOrderDto { Items = [new OrderLineDto { ProductId = 1, Quantity = 1 }] };
+        var dto = new CreateOrderDto { Items = [new OrderItemRequestDto { ProductId = 1, Quantity = 1 }] };
 
         var result = await _sut.PlaceOrderAsync(0, dto);
 
@@ -38,7 +41,7 @@ public class OrderServiceTests
     [Fact]
     public async Task PlaceOrderAsync_WhenRepoFails_ShouldNotBumpCache()
     {
-        var dto = new CreateOrderDto { Items = [new OrderLineDto { ProductId = 1, Quantity = 2 }] };
+        var dto = new CreateOrderDto { Items = [new OrderItemRequestDto { ProductId = 1, Quantity = 2 }] };
         _orderRepo
             .Setup(x => x.PlaceOrderAsync(5, It.IsAny<IReadOnlyList<OrderLineInput>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OrderPlaceResult.Fail("Insufficient stock for product 1."));
@@ -53,10 +56,33 @@ public class OrderServiceTests
     public async Task PlaceOrderAsync_WhenRepoSucceeds_ShouldBumpCategoryVersionOnly()
     {
         var created = new DateTime(2026, 3, 24, 12, 0, 0, DateTimeKind.Utc);
-        var dto = new CreateOrderDto { Items = [new OrderLineDto { ProductId = 10, Quantity = 1 }] };
+        var dto = new CreateOrderDto { Items = [new OrderItemRequestDto { ProductId = 10, Quantity = 1 }] };
         _orderRepo
             .Setup(x => x.PlaceOrderAsync(3, It.IsAny<IReadOnlyList<OrderLineInput>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OrderPlaceResult.Ok(99, 25.5m, created));
+
+        var placed = new Order
+        {
+            Id = 99,
+            UserId = 3,
+            TotalAmount = 25.5m,
+            Status = OrderStatus.Pending,
+            PaymentStatus = PaymentStatus.NotPaid,
+            CreatedAt = created,
+            OrderItems = new List<OrderItem>
+            {
+                new()
+                {
+                    ProductId = 10,
+                    Quantity = 1,
+                    PriceAtPurchase = 25.5m,
+                    Product = new Product { Name = "TestProduct" }
+                }
+            }
+        };
+        _orderRepo
+            .Setup(x => x.GetByIdForUserWithItemsAndProductsAsync(99, 3, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(placed);
 
         var result = await _sut.PlaceOrderAsync(3, dto);
 
@@ -64,6 +90,78 @@ public class OrderServiceTests
         result.Data!.Id.Should().Be(99);
         result.Data.TotalAmount.Should().Be(25.5m);
         result.Data.CreatedAt.Should().Be(created);
+        result.Data.PaymentStatus.Should().Be(PaymentStatus.NotPaid);
+        result.Data.ItemCount.Should().Be(1);
+        result.Data.Items.Should().ContainSingle(i => i.ProductName == "TestProduct" && i.Quantity == 1);
+        _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.CategoryVersionKey()), Times.Once);
+    }
+
+    [Fact]
+    public async Task CancelPendingOrderAsync_WhenUserIdInvalid_ShouldThrowUnauthorized()
+    {
+        var act = async () => await _sut.CancelPendingOrderAsync(0, 1);
+
+        await act.Should().ThrowAsync<UnauthorizedException>();
+        _orderRepo.Verify(
+            x => x.TryCancelPendingOrderForUserAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task CancelPendingOrderAsync_WhenNotFound_ShouldThrowNotFound()
+    {
+        _orderRepo
+            .Setup(x => x.TryCancelPendingOrderForUserAsync(7, 3, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OrderCancelResult.Fail(OrderCancelFailure.NotFound));
+
+        var act = async () => await _sut.CancelPendingOrderAsync(3, 7);
+
+        await act.Should().ThrowAsync<NotFoundException>();
+        _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.CategoryVersionKey()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CancelPendingOrderAsync_WhenNotCancellable_ShouldThrowConflict()
+    {
+        _orderRepo
+            .Setup(x => x.TryCancelPendingOrderForUserAsync(7, 3, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OrderCancelResult.Fail(OrderCancelFailure.NotCancellable));
+
+        var act = async () => await _sut.CancelPendingOrderAsync(3, 7);
+
+        await act.Should().ThrowAsync<ConflictException>();
+        _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.CategoryVersionKey()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CancelPendingOrderAsync_WhenOk_ShouldBumpCacheAndReturnCancelled()
+    {
+        var created = new DateTime(2026, 3, 24, 12, 0, 0, DateTimeKind.Utc);
+        _orderRepo
+            .Setup(x => x.TryCancelPendingOrderForUserAsync(7, 3, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(
+                OrderCancelResult.Ok(7, 3, 42m, created, null, PaymentStatus.NotPaid));
+
+        var cancelled = new Order
+        {
+            Id = 7,
+            UserId = 3,
+            TotalAmount = 42m,
+            CreatedAt = created,
+            Status = OrderStatus.Cancelled,
+            PaymentStatus = PaymentStatus.NotPaid,
+            OrderItems = new List<OrderItem>()
+        };
+        _orderRepo
+            .Setup(x => x.GetByIdForUserWithItemsAndProductsAsync(7, 3, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(cancelled);
+
+        var dto = await _sut.CancelPendingOrderAsync(3, 7);
+
+        dto.Id.Should().Be(7);
+        dto.Status.Should().Be(OrderStatus.Cancelled);
+        dto.PaymentStatus.Should().Be(PaymentStatus.NotPaid);
+        dto.TotalAmount.Should().Be(42m);
         _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.CategoryVersionKey()), Times.Once);
     }
 }

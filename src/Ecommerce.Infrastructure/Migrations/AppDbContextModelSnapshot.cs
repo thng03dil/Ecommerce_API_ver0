@@ -17,7 +17,7 @@ namespace Ecommerce.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.5")
+                .HasAnnotation("ProductVersion", "8.0.11")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -79,8 +79,10 @@ namespace Ecommerce.Infrastructure.Migrations
                     b.Property<DateTime?>("PaidAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<DateTime?>("PaymentExpiresAt")
-                        .HasColumnType("datetime2");
+                    b.Property<string>("PaymentStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -106,6 +108,8 @@ namespace Ecommerce.Infrastructure.Migrations
                     b.HasIndex("StripeCheckoutSessionId")
                         .IsUnique()
                         .HasFilter("[StripeCheckoutSessionId] IS NOT NULL");
+
+                    b.HasIndex("UserId");
 
                     b.ToTable("Orders", (string)null);
                 });
@@ -380,6 +384,66 @@ namespace Ecommerce.Infrastructure.Migrations
                             Entity = "permission",
                             IsDeleted = false,
                             Name = "permission.delete"
+                        },
+                        new
+                        {
+                            Id = 20,
+                            Action = "manage_read",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Admin: list and view orders",
+                            Entity = "order",
+                            IsDeleted = false,
+                            Name = "order.manage_read"
+                        },
+                        new
+                        {
+                            Id = 21,
+                            Action = "manage_update",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Admin: update order status",
+                            Entity = "order",
+                            IsDeleted = false,
+                            Name = "order.manage_update"
+                        },
+                        new
+                        {
+                            Id = 22,
+                            Action = "cancel",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Cancel order",
+                            Entity = "order",
+                            IsDeleted = false,
+                            Name = "order.cancel"
+                        },
+                        new
+                        {
+                            Id = 23,
+                            Action = "create",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Create order",
+                            Entity = "order",
+                            IsDeleted = false,
+                            Name = "order.create"
+                        },
+                        new
+                        {
+                            Id = 24,
+                            Action = "read",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Read order",
+                            Entity = "order",
+                            IsDeleted = false,
+                            Name = "order.read"
+                        },
+                        new
+                        {
+                            Id = 25,
+                            Action = "checkout",
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Checkout order",
+                            Entity = "order",
+                            IsDeleted = false,
+                            Name = "order.checkout"
                         });
                 });
 
@@ -573,6 +637,17 @@ namespace Ecommerce.Infrastructure.Migrations
                     b.HasIndex("RoleId");
 
                     b.ToTable("Users", (string)null);
+                });
+
+            modelBuilder.Entity("Ecommerce.Domain.Entities.Order", b =>
+                {
+                    b.HasOne("Ecommerce.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Ecommerce.Domain.Entities.OrderItem", b =>

@@ -36,6 +36,13 @@ namespace Ecommerce.Infrastructure.Data.Configurations
                 .HasMaxLength(20)
                 .IsRequired();
 
+            builder.Property(o => o.PaymentStatus)
+                .HasConversion(
+                    v => v.ToString(),
+                    v => ParsePaymentStatusSafe(v))
+                .HasMaxLength(20)
+                .IsRequired();
+
             builder.Property(o => o.StripeCheckoutSessionId)
                 .HasMaxLength(255);
 
@@ -57,5 +64,10 @@ namespace Ecommerce.Infrastructure.Data.Configurations
             Enum.TryParse<OrderStatus>(value, ignoreCase: true, out var parsed)
                 ? parsed
                 : OrderStatus.Pending;
+
+        private static PaymentStatus ParsePaymentStatusSafe(string value) =>
+            Enum.TryParse<PaymentStatus>(value, ignoreCase: true, out var parsed)
+                ? parsed
+                : PaymentStatus.NotPaid;
     }
 }

@@ -24,7 +24,7 @@ namespace Ecommerce.Infrastructure.Repositories
             var query = _context.Products
                 .Include(p => p.Category)
                 .AsNoTracking()
-                .Where(p => !p.IsDeleted);
+                .Where(p => !p.IsDeleted && p.Category != null && !p.Category.IsDeleted);
 
             if (!string.IsNullOrEmpty(filter.Keyword))
             {
@@ -100,7 +100,7 @@ namespace Ecommerce.Infrastructure.Repositories
         {
             return await _context.Products
                 .Include(p => p.Category)
-                .FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
+                .FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted && p.Category != null && !p.Category.IsDeleted);
         }
        
         public async Task UpdateAsync(Product product)

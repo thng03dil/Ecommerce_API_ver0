@@ -162,7 +162,6 @@ namespace Ecommerce.Application.Services.Implementations
                     await _roleRepo.AddAsync(role);
                     return role;
                 });
-                //await _roleRepo.SaveChangesAsync();
 
                 var roleWithDetails = await _roleRepo.GetByIdWithPermissionsAsync(createdRole.Id);
                 
@@ -198,6 +197,7 @@ namespace Ecommerce.Application.Services.Implementations
                 role.UpdatedAt = DateTime.UtcNow;
 
                 await _roleRepo.UpdateAsync(role);
+                await _roleRepo.SaveChangesAsync();
 
                 await _cacheService.RemoveAsync(CacheKeyGenerator.Role(id));
                 await _cacheService.IncrementAsync(CacheKeyGenerator.RoleVersionKey());

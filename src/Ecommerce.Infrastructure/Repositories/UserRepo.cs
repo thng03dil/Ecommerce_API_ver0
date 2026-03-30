@@ -20,7 +20,7 @@ namespace Ecommerce.Infrastructure.Repositories
             var query = _context.Users
                     .AsNoTracking()
                     .Include(c => c.Role)
-                    .Where(x => !x.IsDeleted);
+                    .Where(x => !x.IsDeleted && !x.Role.IsDeleted);
 
             var totalItem = await query.CountAsync();
 
@@ -36,7 +36,7 @@ namespace Ecommerce.Infrastructure.Repositories
             return await _context.Users
                 .AsNoTracking()
                 .Include(c => c.Role)
-                .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
+                .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted && !x.Role.IsDeleted);
         }
 
         public async Task<User?> GetByIdWithPermissionsAsync(int id)
@@ -46,7 +46,7 @@ namespace Ecommerce.Infrastructure.Repositories
                 .Include(u => u.Role)
                 .ThenInclude(r => r.RolePermissions)
                 .ThenInclude(rp => rp.Permission)
-                .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
+                .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted && !x.Role.IsDeleted);
         }
         public async Task<User?> GetByIdForUpdateAsync(int id)
         {
@@ -54,7 +54,7 @@ namespace Ecommerce.Infrastructure.Repositories
                 .Include(u => u.Role)
                 .ThenInclude(r => r.RolePermissions)
                 .ThenInclude(rp => rp.Permission)
-                .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
+                .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted && !x.Role.IsDeleted);
         }
 
         public async Task<UserAuthState?> GetUserAuthStateAsync(int userId)
@@ -93,7 +93,7 @@ namespace Ecommerce.Infrastructure.Repositories
                 .Include(u => u.Role)
                 .ThenInclude(r => r.RolePermissions)
                 .ThenInclude(rp => rp.Permission)
-                .FirstOrDefaultAsync(x => x.Email == email && !x.IsDeleted);
+                .FirstOrDefaultAsync(x => x.Email == email && !x.IsDeleted && !x.Role.IsDeleted);
         }
         
         public async Task<IReadOnlyList<int>> ReassignUsersToRoleAsync(int fromRoleId, int toRoleId)
@@ -122,11 +122,10 @@ namespace Ecommerce.Infrastructure.Repositories
                 .ToListAsync(cancellationToken);
         }
 
+        /// <summary>Adds the entity; caller must <see cref="SaveChangesAsync"/> or use a unit-of-work transaction.</summary>
         public async Task AddAsync(User user)
         {
             await _context.Users.AddAsync(user);
-            await _context.SaveChangesAsync();
-
         }
         public async Task UpdateAsync(User user)
         {

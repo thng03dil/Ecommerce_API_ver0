@@ -1,6 +1,8 @@
 using Ecommerce.Application.Common.Caching;
 using Ecommerce.Application.Common.Responses;
+using Ecommerce.Application.DTOs.Order;
 using Ecommerce.Application.DTOs.OrderDtos;
+using Ecommerce.Application.Exceptions;
 using Ecommerce.Application.Services.Interfaces;
 using Ecommerce.Domain.Common;
 using Ecommerce.Domain.Entities;
@@ -32,7 +34,7 @@ public class OrderService : IOrderService
         if (order == null)
             return ApiResponse<OrderResponseDto>.ErrorResponse("Order not found.", 404);
 
-        return ApiResponse<OrderResponseDto>.SuccessResponse(MapToDto(order));
+        return ApiResponse<OrderResponseDto>.SuccessResponse(OrderResponseMapper.ToDto(order));
     }
 
     public async Task<ApiResponse<IReadOnlyList<OrderResponseDto>>> ListForUserAsync(
@@ -43,21 +45,9 @@ public class OrderService : IOrderService
             return ApiResponse<IReadOnlyList<OrderResponseDto>>.ErrorResponse("User is not authenticated.", 401);
 
         var orders = await _orderRepo.ListForUserAsync(userId, cancellationToken);
-        var dtos = orders.Select(MapToDto).ToList();
+        var dtos = orders.Select(OrderResponseMapper.ToDto).ToList();
         return ApiResponse<IReadOnlyList<OrderResponseDto>>.SuccessResponse(dtos);
     }
-
-    private static OrderResponseDto MapToDto(Order order) =>
-        new()
-        {
-            Id = order.Id,
-            UserId = order.UserId,
-            TotalAmount = order.TotalAmount,
-            Status = order.Status,
-            CreatedAt = order.CreatedAt,
-            PaidAt = order.PaidAt,
-            PaymentExpiresAt = order.PaymentExpiresAt
-        };
 
     public async Task<ApiResponse<OrderResponseDto>> PlaceOrderAsync(
         int userId,
@@ -81,16 +71,65 @@ public class OrderService : IOrderService
 
         await _cacheService.IncrementAsync(CacheKeyGenerator.CategoryVersionKey());
 
-        var response = new OrderResponseDto
+        var order = await _orderRepo.GetByIdForUserWithItemsAndProductsAsync(outcome.OrderId, userId, cancellationToken);
+        if (order == null)
+        {
+            return ApiResponse<OrderResponseDto>.SuccessResponse(
+                new OrderResponseDto
+                {
+                    Id = outcome.OrderId,
+                    UserId = userId,
+                    TotalAmount = outcome.TotalAmount,
+                    Status = OrderStatus.Pending,
+                    PaymentStatus = PaymentStatus.NotPaid,
+                    CreatedAt = outcome.CreatedAt,
+                    ItemCount = 0,
+                    Items = new List<OrderItemDetailResponseDto>()
+                },
+                "Order placed successfully.");
+        }
+
+        return ApiResponse<OrderResponseDto>.SuccessResponse(
+            OrderResponseMapper.ToDto(order),
+            "Order placed successfully.");
+    }
+
+    public async Task<OrderResponseDto> CancelPendingOrderAsync(
+        int userId,
+        int orderId,
+        CancellationToken cancellationToken = default)
+    {
+        if (userId <= 0)
+            throw new UnauthorizedException("User is not authenticated.");
+
+        var outcome = await _orderRepo.TryCancelPendingOrderForUserAsync(orderId, userId, cancellationToken);
+
+        if (!outcome.Success)
+        {
+            if (outcome.Failure == OrderCancelFailure.NotFound)
+                throw new NotFoundException("Order not found.");
+            throw new ConflictException("This order cannot be cancelled.");
+        }
+
+        await _cacheService.IncrementAsync(CacheKeyGenerator.CategoryVersionKey());
+
+        var reloaded = await _orderRepo.GetByIdForUserWithItemsAndProductsAsync(orderId, userId, cancellationToken);
+        if (reloaded != null)
+            return OrderResponseMapper.ToDto(reloaded);
+
+        return new OrderResponseDto
         {
             Id = outcome.OrderId,
-            UserId = userId,
+            UserId = outcome.UserId,
             TotalAmount = outcome.TotalAmount,
-            Status = OrderStatus.Pending,
+            Status = OrderStatus.Cancelled,
+            PaymentStatus = outcome.PaymentStatus,
             CreatedAt = outcome.CreatedAt,
-            PaymentExpiresAt = outcome.PaymentExpiresAt
+            PaidAt = outcome.PaidAt,
+            StripeCheckoutSessionId = null,
+            StripePaymentIntentId = null,
+            ItemCount = 0,
+            Items = new List<OrderItemDetailResponseDto>()
         };
-
-        return ApiResponse<OrderResponseDto>.SuccessResponse(response, "Order placed successfully.");
     }
 }

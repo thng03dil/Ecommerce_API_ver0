@@ -1,5 +1,4 @@
 using Ecommerce.API;
-using Ecommerce.API.BackgroundServices;
 using Ecommerce.API.Extensions;
 using Ecommerce.API.Middleware;
 using Ecommerce.Application.Authorization;
@@ -63,11 +62,13 @@ builder.Configuration.GetSection("AuthSecurity"));
 builder.Services.Configure<StripeSettings>(
     builder.Configuration.GetSection(StripeSettings.SectionName));
 
-builder.Services.AddHostedService<ExpiredPendingOrderCleanupService>();
-
 var fingerprintSecret = builder.Configuration["AuthSecurity:FingerprintSecret"];
 if (string.IsNullOrWhiteSpace(fingerprintSecret))
     throw new InvalidOperationException("AuthSecurity:FingerprintSecret is required. Set via User Secrets: dotnet user-secrets set \"AuthSecurity:FingerprintSecret\" \"your-secret-32-chars-min\" --project src/Ecommerce.API");
+
+var deviceBindingSecret = builder.Configuration["AuthSecurity:DeviceBindingSecret"];
+if (string.IsNullOrWhiteSpace(deviceBindingSecret))
+    throw new InvalidOperationException("AuthSecurity:DeviceBindingSecret is required. Set via User Secrets: dotnet user-secrets set \"AuthSecurity:DeviceBindingSecret\" \"your-device-binding-secret-32-chars-min\" --project src/Ecommerce.API");
 
 
 builder.Services.AddControllers();
@@ -152,10 +153,13 @@ app.UseWhen(
 
 app.MapControllers();
 
+
 // call seeder
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+    await context.Database.MigrateAsync();
 
     await DataSeeder.SeedAdminAsync(context);
 }

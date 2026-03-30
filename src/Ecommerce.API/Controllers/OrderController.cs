@@ -19,6 +19,7 @@ public class OrderController : BaseController
         _orderPaymentService = orderPaymentService;
     }
 
+  [Authorize(Policy = "order.create")]
     [HttpPost]
     public async Task<IActionResult> Place([FromBody] CreateOrderDto dto, CancellationToken cancellationToken)
     {
@@ -26,6 +27,7 @@ public class OrderController : BaseController
         return ToActionResult(result);
     }
 
+    [Authorize(Policy = "order.read")]
     [HttpGet]
     public async Task<IActionResult> MyOrders(CancellationToken cancellationToken)
     {
@@ -33,6 +35,7 @@ public class OrderController : BaseController
         return ToActionResult(result);
     }
 
+    [Authorize(Policy = "order.read")]
     [HttpGet("{id:int}")]
     public async Task<IActionResult> Get(int id, CancellationToken cancellationToken)
     {
@@ -40,13 +43,19 @@ public class OrderController : BaseController
         return ToActionResult(result);
     }
 
-    [HttpPost("{id:int}/checkout")]
-    public async Task<IActionResult> CreateCheckout(
-        int id,
-        [FromBody] CreateCheckoutSessionDto dto,
-        CancellationToken cancellationToken)
+    [Authorize(Policy = "order.cancel")]
+    [HttpPut("{id:int}/cancel")]
+    public async Task<IActionResult> Cancel(int id, CancellationToken cancellationToken)
     {
-        var result = await _orderPaymentService.CreateCheckoutSessionAsync(CurrentUserId, id, dto, cancellationToken);
+        var data = await _orderService.CancelPendingOrderAsync(CurrentUserId, id, cancellationToken);
+        return OkResponse(data, "Order cancelled successfully.");
+    }
+
+    [Authorize(Policy = "order.checkout")]
+    [HttpPost("{id:int}/checkout")]
+    public async Task<IActionResult> CreateCheckout(int id, CancellationToken cancellationToken)
+    {
+        var result = await _orderPaymentService.CreateCheckoutSessionAsync(CurrentUserId, id, cancellationToken);
         return ToActionResult(result);
     }
 

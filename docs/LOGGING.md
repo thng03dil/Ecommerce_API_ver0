@@ -2,7 +2,7 @@
 
 ## File log ở đâu?
 
-- Đường dẫn cấu hình: **`logs/log-YYYYMMDD.txt`** (rolling theo ngày), tính từ **thư mục làm việc** khi chạy API (thường là `bin/Debug/net10.0/` khi F5, hoặc thư mục bạn `dotnet run`).
+- Đường dẫn cấu hình: **`logs/log-YYYYMMDD.txt`** (rolling theo ngày), tính từ **thư mục làm việc** khi chạy API (thường là `bin/Debug/net8.0/` khi F5, hoặc thư mục bạn `dotnet run`).
 
 ## Console vs Development
 

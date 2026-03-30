@@ -34,9 +34,6 @@ namespace Ecommerce.API.Controllers
             return OkResponse(result);
         }
 
-        /// <summary>
-        /// Trả về access token mới. Refresh token trong body phản hồi trùng request (không đổi) — client cứ lưu một RT cho tới khi hết hạn hoặc logout.
-        /// </summary>
         [HttpPost("refresh")]
         public async Task<IActionResult> Refresh(RefreshTokenRequestDto request)
         {

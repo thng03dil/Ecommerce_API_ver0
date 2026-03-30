@@ -29,10 +29,21 @@ public class AuthServiceTests
     private readonly Mock<ITokenBlacklistService> _tokenBlacklist = new();
     private readonly Mock<IUserSessionInvalidationService> _sessionInvalidation = new();
     private readonly Mock<IRolePermissionService> _rolePermissionService = new();
+    private readonly Mock<IUnitOfWork> _unitOfWork = new();
     private readonly AuthService _sut;
 
     public AuthServiceTests()
     {
+        _unitOfWork
+            .Setup(x => x.ExecuteInTransactionAsync(It.IsAny<Func<Task<bool>>>(), It.IsAny<CancellationToken>()))
+            .Returns<Func<Task<bool>>, CancellationToken>((fn, _) => fn());
+        _unitOfWork
+            .Setup(x => x.ExecuteInTransactionAsync(It.IsAny<Func<Task<(User, Guid, string, string)>>>(), It.IsAny<CancellationToken>()))
+            .Returns<Func<Task<(User, Guid, string, string)>>, CancellationToken>((fn, _) => fn());
+        _unitOfWork
+            .Setup(x => x.ExecuteInTransactionAsync(It.IsAny<Func<Task<User>>>(), It.IsAny<CancellationToken>()))
+            .Returns<Func<Task<User>>, CancellationToken>((fn, _) => fn());
+
         _sut = new AuthService(
             _userRepo.Object,
             _roleRepo.Object,
@@ -44,7 +55,8 @@ public class AuthServiceTests
             _fingerprint.Object,
             _tokenBlacklist.Object,
             _sessionInvalidation.Object,
-            _rolePermissionService.Object);
+            _rolePermissionService.Object,
+            _unitOfWork.Object);
     }
 
     // ──────────────────────────────────────────────────────
@@ -182,7 +194,9 @@ public class AuthServiceTests
         userForUpdate.RefreshTokenExpiresAtUtc.Should().BeCloseTo(DateTime.UtcNow.AddDays(7), TimeSpan.FromSeconds(5));
         userForUpdate.SessionVersion.Should().Be(4); // 3 + 1
 
-        _userRepo.Verify(x => x.SaveChangesAsync(), Times.Once);
+        _unitOfWork.Verify(
+            x => x.ExecuteInTransactionAsync(It.IsAny<Func<Task<(User, Guid, string, string)>>>(), It.IsAny<CancellationToken>()),
+            Times.Once);
         _cacheService.Verify(x => x.SetAsync(
             It.IsAny<string>(),
             It.IsAny<object>(),
@@ -300,7 +314,9 @@ public class AuthServiceTests
         result.AccessToken.Should().Be("new-access");
         result.RefreshToken.Should().Be("old-rt"); // RT unchanged
         user.SessionVersion.Should().Be(5);        // sv incremented
-        _userRepo.Verify(x => x.SaveChangesAsync(), Times.Once);
+        _unitOfWork.Verify(
+            x => x.ExecuteInTransactionAsync(It.IsAny<Func<Task<User>>>(), It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     // ──────────────────────────────────────────────────────
