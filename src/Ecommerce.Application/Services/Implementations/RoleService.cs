@@ -169,7 +169,7 @@ namespace Ecommerce.Application.Services.Implementations
                 if (dto.PermissionIds != null && dto.PermissionIds.Any())
                     await _cacheService.IncrementAsync(CacheKeyGenerator.PermissionVersionKey());
 
-                return ApiResponse<RoleResponseDto>.SuccessResponse(MapToResponseDto(roleWithDetails!), "Created successfully");
+                return ApiResponse<RoleResponseDto>.SuccessResponse(201, MapToResponseDto(roleWithDetails!), "Created successfully");
 
             }
             finally { _writeLock.Release(); }

@@ -103,6 +103,7 @@ namespace Ecommerce.Application.Services.Implementations
 
             var item = MapToResponseDto(category);
             return ApiResponse<CategoryResponseDto>.SuccessResponse(
+                201,
                 item,
                 "Create data successfully");
         }

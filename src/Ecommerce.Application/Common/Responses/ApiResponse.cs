@@ -21,6 +21,10 @@ namespace Ecommerce.Application.Common.Responses
         {
             return new ApiResponse<T>(200, true, message, data);
         }
+        public static ApiResponse<T> SuccessResponse(int statusCode, T data, string message = "Success")
+        {
+            return new ApiResponse<T>(201, true, message, data);
+        }
         public static ApiResponse<T> ErrorResponse(string message, int statusCode = 400)
         {
             // Bây giờ truyền default (null) vào đây sẽ không còn bị Warning

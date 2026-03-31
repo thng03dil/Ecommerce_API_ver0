@@ -122,6 +122,7 @@ namespace Ecommerce.Application.Services.Implementations
 
                 var item = MapToResponseDto(permission);
                 return ApiResponse<PermissionResponseDto>.SuccessResponse(
+                    201,
                        item,
                         "Create data successfully"
                         );

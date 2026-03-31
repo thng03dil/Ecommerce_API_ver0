@@ -1,0 +1,20 @@
+# Loại bỏ các thư mục biên dịch của C# (Quan trọng nhất)
+** /bin
+** /obj
+
+# Loại bỏ các file của Visual Studio
+.vs/
+.vscode/
+*.user
+*.suo
+
+# Loại bỏ lịch sử Git
+.git/
+.gitignore
+
+# Loại bỏ các file rác của Docker và Log
+docker-compose*
+*.log
+
+# Loại bỏ các file cấu hình nhạy cảm (nếu bạn dùng .env)
+.env

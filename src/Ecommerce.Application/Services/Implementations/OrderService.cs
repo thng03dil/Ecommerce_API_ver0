@@ -75,6 +75,7 @@ public class OrderService : IOrderService
         if (order == null)
         {
             return ApiResponse<OrderResponseDto>.SuccessResponse(
+                201,
                 new OrderResponseDto
                 {
                     Id = outcome.OrderId,
