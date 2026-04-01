@@ -169,7 +169,9 @@ public class RoleServiceTests
 
         var act = () => _sut.GetByIdAsync(99);
 
-        (await act.Should().ThrowAsync<NotFoundException>()).Which.ErrorCode.Should().Be("Role not found");
+        // SỬA: Dùng .Message thay vì .ErrorCode
+        (await act.Should().ThrowAsync<NotFoundException>())
+            .Which.Message.Should().Be("Role not found");
     }
 
     #endregion
@@ -256,7 +258,9 @@ public class RoleServiceTests
 
         var act = () => _sut.UpdateAsync(1, new RoleUpdateDto { Name = "X", Description = "d" });
 
-        (await act.Should().ThrowAsync<NotFoundException>()).Which.ErrorCode.Should().Be("Role not found");
+        // SỬA: Dùng .Message
+        (await act.Should().ThrowAsync<NotFoundException>())
+            .Which.Message.Should().Be("Role not found");
     }
 
     [Fact]
@@ -311,7 +315,9 @@ public class RoleServiceTests
 
         var act = () => _sut.AssignPermissionsAsync(new AssignPermissionsDto { RoleId = 1, PermissionIds = new List<int>() });
 
-        (await act.Should().ThrowAsync<NotFoundException>()).Which.ErrorCode.Should().Be("Role not found");
+        // SỬA: Dùng .Message
+        (await act.Should().ThrowAsync<NotFoundException>())
+            .Which.Message.Should().Be("Role not found");
     }
 
     [Fact]
@@ -402,9 +408,10 @@ public class RoleServiceTests
 
         var act = () => _sut.DeleteAsync(1);
 
-        (await act.Should().ThrowAsync<NotFoundException>()).Which.ErrorCode.Should().Be("Role not found");
+        // SỬA: Dùng .Message
+        (await act.Should().ThrowAsync<NotFoundException>())
+            .Which.Message.Should().Be("Role not found");
     }
-
     [Fact]
     public async Task DeleteAsync_WhenBuiltInAdminName_ShouldThrowBusinessException()
     {

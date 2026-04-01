@@ -40,7 +40,7 @@ namespace Ecommerce.Infrastructure.Data.Configurations
             builder.Property(x => x.CurrentSessionId)
                 .IsRequired(false);
 
-            builder.Property(x => x.LastDeviceId)
+            builder.Property(x => x.LastDeviceIdHash)
                 .HasMaxLength(256)
                 .IsRequired(false);
 

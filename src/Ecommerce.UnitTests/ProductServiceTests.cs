@@ -79,8 +79,9 @@ public class ProductServiceTests
 
         var act = () => _sut.GetByIdAsync(999);
 
-        (await act.Should().ThrowAsync<NotFoundException>()).Which.ErrorCode.Should()
-            .Be("Product with ID 999 not found");
+        // SỬA: Dùng .Message
+        (await act.Should().ThrowAsync<NotFoundException>())
+            .Which.Message.Should().Be("Product with ID 999 not found");
     }
 
     #endregion
@@ -95,7 +96,9 @@ public class ProductServiceTests
 
         var act = () => _sut.CreateAsync(dto);
 
-        (await act.Should().ThrowAsync<NotFoundException>()).Which.ErrorCode.Should().Be("Category not found");
+        // SỬA: Dùng .Message
+        (await act.Should().ThrowAsync<NotFoundException>())
+            .Which.Message.Should().Be("Category not found");
     }
 
     [Fact]
@@ -145,7 +148,9 @@ public class ProductServiceTests
 
         var act = () => _sut.UpdateAsync(50, dto);
 
-        (await act.Should().ThrowAsync<NotFoundException>()).Which.ErrorCode.Should().Be("Product not found");
+        // SỬA: Dùng .Message
+        (await act.Should().ThrowAsync<NotFoundException>())
+            .Which.Message.Should().Be("Product not found");
     }
 
     [Fact]
@@ -158,8 +163,11 @@ public class ProductServiceTests
 
         var act = () => _sut.UpdateAsync(12, dto);
 
-        (await act.Should().ThrowAsync<NotFoundException>()).Which.ErrorCode.Should().Be("Category not found");
+        // SỬA: Dùng .Message
+        (await act.Should().ThrowAsync<NotFoundException>())
+            .Which.Message.Should().Be("Category not found");
     }
+
 
     [Fact]
     public async Task UpdateAsync_WhenValid_ShouldUpdateAndBumpCategoryVersionOnly()
@@ -203,7 +211,9 @@ public class ProductServiceTests
 
         var act = () => _sut.DeleteAsync(8);
 
-        (await act.Should().ThrowAsync<NotFoundException>()).Which.ErrorCode.Should().Be("Product not found");
+        // SỬA: Dùng .Message
+        (await act.Should().ThrowAsync<NotFoundException>())
+            .Which.Message.Should().Be("Product not found");
     }
 
     [Fact]

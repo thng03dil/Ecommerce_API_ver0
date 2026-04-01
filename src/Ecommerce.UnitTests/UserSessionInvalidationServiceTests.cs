@@ -55,14 +55,14 @@ public class UserSessionInvalidationServiceTests
         var userId = 60103;
         var user = TestDataMother.CreateUser(userId, sessionVersion: 2, currentSessionId: Guid.NewGuid(),
             refreshTokenHash: "some-hash", refreshTokenExpiresAtUtc: DateTime.UtcNow.AddDays(3));
-        user.LastDeviceId = "dev";
+        user.LastDeviceIdHash = "binding-hash";
         user.LastFingerprintHash = "fp";
         _userRepo.Setup(x => x.GetByIdForUpdateAsync(userId)).ReturnsAsync(user);
 
         await _sut.InvalidateAsync(userId);
 
         user.CurrentSessionId.Should().BeNull();
-        user.LastDeviceId.Should().BeNull();
+        user.LastDeviceIdHash.Should().BeNull();
         user.LastFingerprintHash.Should().BeNull();
         user.RefreshTokenHash.Should().BeNull();
         user.RefreshTokenExpiresAtUtc.Should().BeNull();

@@ -7,5 +7,6 @@ public enum PaymentStatus
 {
     NotPaid = 0,
     Succeeded = 1,
-    Failed = 2
+    Failed = 2,
+    Refunded = 3
 }

@@ -16,7 +16,8 @@ namespace Ecommerce.Domain.Entities
 
         public string? LastFingerprintHash { get; set; }
 
-        public string? LastDeviceId { get; set; }
+        /// <summary>HMAC of device id (DeviceBindingSecret); not the raw device id.</summary>
+        public string? LastDeviceIdHash { get; set; }
 
         /// <summary>HMAC-SHA256 hash of the active refresh token plaintext.</summary>
         public string? RefreshTokenHash { get; set; }

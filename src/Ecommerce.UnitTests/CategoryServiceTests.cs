@@ -108,12 +108,21 @@ public class CategoryServiceTests
     [Fact]
     public async Task GetByIdAsync_WhenNotFound_ShouldThrowNotFoundException()
     {
+        // Arrange
         _cacheService.Setup(x => x.GetAsync<CategoryResponseDto>(It.IsAny<string>())).ReturnsAsync((CategoryResponseDto?)null);
         _categoryRepo.Setup(x => x.GetByIdAsync(99)).ReturnsAsync((Category?)null);
 
+        // Act
         var act = () => _sut.GetByIdAsync(99);
 
-        (await act.Should().ThrowAsync<NotFoundException>()).Which.ErrorCode.Should().Be("Category not found");
+        // Assert
+        var exception = await act.Should().ThrowAsync<NotFoundException>();
+
+        // Sửa ở đây: Kiểm tra Message thay vì ErrorCode
+        exception.Which.Message.Should().Be("Category not found");
+
+        // Nếu muốn kiểm tra ErrorCode thì phải là:
+        exception.Which.ErrorCode.Should().Be("NOT_FOUND");
     }
 
     #endregion
@@ -139,15 +148,20 @@ public class CategoryServiceTests
     #endregion
 
     #region UpdateAsync
-
     [Fact]
     public async Task UpdateAsync_WhenCategoryMissing_ShouldThrowNotFoundException()
     {
+        // Arrange
         _categoryRepo.Setup(x => x.GetByIdForUpdateAsync(1)).ReturnsAsync((Category?)null);
 
+        // Act
         var act = () => _sut.UpdateAsync(1, new CategoryUpdateDto { Name = "X", Slug = "x" });
 
-        (await act.Should().ThrowAsync<NotFoundException>()).Which.ErrorCode.Should().Be("Category not found");
+        // Assert
+        var exception = await act.Should().ThrowAsync<NotFoundException>();
+
+        // Sửa thành Message
+        exception.Which.Message.Should().Be("Category not found");
     }
 
     [Fact]

@@ -58,17 +58,30 @@ namespace Ecommerce.Infrastructure.SecurityHelpers
         
         public string ComputeFingerprint(string deviceId)
         {
-            if (string.IsNullOrWhiteSpace(_settings.DeviceBindingSecret))
-                throw new InvalidOperationException("AuthSecurity:DeviceBindingSecret is not configured. Use User Secrets (AuthSecurity__FingerprintSecret) or environment variable.");
+            if (string.IsNullOrWhiteSpace(_settings.FingerprintSecret))
+                throw new InvalidOperationException("AuthSecurity:FingerprintSecret is not configured. Use User Secrets (AuthSecurity__FingerprintSecret) or environment variable.");
 
             var ip = GetClientIpAddress();
             var payload = $"{deviceId ?? string.Empty}|{ip}";
-            var key = Encoding.UTF8.GetBytes(_settings.DeviceBindingSecret);
+            var key = Encoding.UTF8.GetBytes(_settings.FingerprintSecret);
             var data = Encoding.UTF8.GetBytes(payload);
 
             using var hmac = new HMACSHA256(key);
             var hash = hmac.ComputeHash(data);
             return Convert.ToBase64String(hash);
+        }
+        public string ComputeDeviceBinding(string deviceId)
+        {
+            if (string.IsNullOrWhiteSpace(_settings.DeviceBindingSecret))
+                throw new InvalidOperationException("AuthSecurity:DeviceBindingSecret is not configured. Use User Secrets (AuthSecurity__DeviceBindingSecret) or environment variable.");
+            
+            var key = Encoding.UTF8.GetBytes(_settings.DeviceBindingSecret);
+            var data = Encoding.UTF8.GetBytes(deviceId ?? string.Empty);
+
+            using var hmac = new HMACSHA256(key);
+            var hash = hmac.ComputeHash(data);
+            return Convert.ToBase64String(hash);
+
         }
     }
 }

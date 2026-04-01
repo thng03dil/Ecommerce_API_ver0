@@ -10,6 +10,8 @@ namespace Ecommerce.Domain.Enums
         Paid = 1,       // Đã thanh toán
         Shipping = 2,   // Đang giao hàng
         Cancelled = 3,  // Đã hủy
-        Completed = 4   // Hoàn thành
+        Completed = 4,   // Hoàn thành
+        ReturnRequested = 5  // yêu cầu trả hàng
+        
     }
 }

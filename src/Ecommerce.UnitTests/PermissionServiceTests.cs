@@ -127,9 +127,10 @@ public class PermissionServiceTests
 
         var act = () => _sut.GetByIdAsync(99);
 
-        (await act.Should().ThrowAsync<NotFoundException>()).Which.ErrorCode.Should().Be("Permission not found");
+        // SỬA: Kiểm tra Message thay vì ErrorCode
+        (await act.Should().ThrowAsync<NotFoundException>())
+            .Which.Message.Should().Be("Permission not found");
     }
-
     #endregion
 
     #region CreateAsync
@@ -183,7 +184,9 @@ public class PermissionServiceTests
 
         var act = () => _sut.UpdateAsync(1, new PermissionUpdateDto { Entity = "a", Action = "b" });
 
-        (await act.Should().ThrowAsync<NotFoundException>()).Which.ErrorCode.Should().Be("Permission not found");
+        // SỬA: Kiểm tra Message thay vì ErrorCode
+        (await act.Should().ThrowAsync<NotFoundException>())
+            .Which.Message.Should().Be("Permission not found");
     }
 
     [Fact]
@@ -227,7 +230,9 @@ public class PermissionServiceTests
 
         var act = () => _sut.DeleteAsync(1);
 
-        (await act.Should().ThrowAsync<NotFoundException>()).Which.ErrorCode.Should().Be("Permission not found");
+        // SỬA: Kiểm tra Message thay vì ErrorCode
+        (await act.Should().ThrowAsync<NotFoundException>())
+            .Which.Message.Should().Be("Permission not found");
     }
 
     [Fact]

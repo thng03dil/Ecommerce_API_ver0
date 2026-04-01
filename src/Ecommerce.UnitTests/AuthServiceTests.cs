@@ -177,6 +177,7 @@ public class AuthServiceTests
         _userRepo.Setup(x => x.GetByEmailAsync(dto.Email)).ReturnsAsync(userForCred);
         _passwordHasher.Setup(x => x.Verify(dto.Password, userForCred.PasswordHash)).Returns(true);
         _fingerprint.Setup(x => x.ComputeFingerprint("body-device")).Returns("fp-device");
+        _fingerprint.Setup(x => x.ComputeDeviceBinding("body-device")).Returns("bind-body-device");
         _userRepo.Setup(x => x.GetByIdForUpdateAsync(userId)).ReturnsAsync(userForUpdate);
         _jwtService.Setup(x => x.GenerateRefreshToken()).Returns("plain-rt");
         _jwtService.Setup(x => x.HashToken("plain-rt")).Returns("hash-rt");
@@ -193,6 +194,7 @@ public class AuthServiceTests
         userForUpdate.RefreshTokenHash.Should().Be("hash-rt");
         userForUpdate.RefreshTokenExpiresAtUtc.Should().BeCloseTo(DateTime.UtcNow.AddDays(7), TimeSpan.FromSeconds(5));
         userForUpdate.SessionVersion.Should().Be(4); // 3 + 1
+        userForUpdate.LastDeviceIdHash.Should().Be("bind-body-device");
 
         _unitOfWork.Verify(
             x => x.ExecuteInTransactionAsync(It.IsAny<Func<Task<(User, Guid, string, string)>>>(), It.IsAny<CancellationToken>()),
@@ -274,6 +276,7 @@ public class AuthServiceTests
         _jwtService.Setup(x => x.GetAccessTokenRemainingLifetime(It.IsAny<string>())).Returns((TimeSpan?)null);
         _deviceService.Setup(x => x.GetDeviceId()).Returns("dev");
         _fingerprint.Setup(x => x.ComputeFingerprint("dev")).Returns("fp");
+        _fingerprint.Setup(x => x.ComputeDeviceBinding("dev")).Returns("bind-dev");
         _jwtService.Setup(x => x.HashToken("wrong-rt")).Returns("wrong-hash");
 
         var user = TestDataMother.CreateUser(userId, sessionVersion: 2, currentSessionId: sid,
@@ -299,6 +302,7 @@ public class AuthServiceTests
         _jwtService.Setup(x => x.GetAccessTokenRemainingLifetime(It.IsAny<string>())).Returns((TimeSpan?)null);
         _deviceService.Setup(x => x.GetDeviceId()).Returns("dev");
         _fingerprint.Setup(x => x.ComputeFingerprint("dev")).Returns("fp");
+        _fingerprint.Setup(x => x.ComputeDeviceBinding("dev")).Returns("bind-dev");
         _jwtService.Setup(x => x.HashToken("old-rt")).Returns("rt-h");
 
         var user = TestDataMother.CreateUser(userId, sessionVersion: 4, currentSessionId: sid,
@@ -314,6 +318,7 @@ public class AuthServiceTests
         result.AccessToken.Should().Be("new-access");
         result.RefreshToken.Should().Be("old-rt"); // RT unchanged
         user.SessionVersion.Should().Be(5);        // sv incremented
+        user.LastDeviceIdHash.Should().Be("bind-dev");
         _unitOfWork.Verify(
             x => x.ExecuteInTransactionAsync(It.IsAny<Func<Task<User>>>(), It.IsAny<CancellationToken>()),
             Times.Once);

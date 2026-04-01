@@ -91,7 +91,7 @@ Tài liệu mô tả **plan hoàn chỉnh** viết unit test cho các service: `
 |------|-----------------|
 | `InvalidateAsync_UserNotFound_ShouldRevokeWithoutSaveChanges` | `GetByIdForUpdateAsync` null → **không** `SaveChangesAsync` (Verify Never); vẫn **RevokeAllForUserAsync** Once |
 | `InvalidateAsync_UserExists_ShouldRevokeSaveAndRemoveCache` | `SessionVersion` user +1; Verify `SaveChangesAsync` Once; `RemoveAsync` đúng key `AuthSession(userId, oldSessionVersion)` |
-| `InvalidateAsync_UserExists_ShouldClearSessionFields` | Kiểm tra user sau xử lý: `CurrentSessionId`, `LastLoginIpHash`, `LastDeviceId` null (nếu giữ reference mutable từ Setup) |
+| `InvalidateAsync_UserExists_ShouldClearSessionFields` | Kiểm tra user sau xử lý: `CurrentSessionId`, `LastDeviceIdHash`, `LastFingerprintHash`, refresh fields null (nếu giữ reference mutable từ Setup) |
 
 **Lý do:** đảm bảo phương án 2 (revoke + bump `SessionVersion` + xóa Redis) không regress.
 

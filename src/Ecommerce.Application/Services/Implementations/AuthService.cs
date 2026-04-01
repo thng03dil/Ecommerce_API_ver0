@@ -126,7 +126,7 @@ namespace Ecommerce.Application.Services.Implementations
                     var sid = Guid.NewGuid();
                     u.SessionVersion += 1;
                     u.CurrentSessionId = sid;
-                    u.LastDeviceId = deviceId;
+                    u.LastDeviceIdHash = _fingerprint.ComputeDeviceBinding(deviceId);
                     u.LastFingerprintHash = fp;
 
                     var refreshPlaintext = _jwtService.GenerateRefreshToken();
@@ -211,7 +211,7 @@ namespace Ecommerce.Application.Services.Implementations
                         throw new UnauthorizedException("Refresh token expired. Please log in again.");
 
                     u.SessionVersion += 1;
-                    u.LastDeviceId = deviceId ?? string.Empty;
+                    u.LastDeviceIdHash = _fingerprint.ComputeDeviceBinding(deviceId ?? string.Empty);
                     u.LastFingerprintHash = currentFingerprint;
 
                     return u;

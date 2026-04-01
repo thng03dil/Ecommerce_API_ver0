@@ -28,7 +28,7 @@ namespace Ecommerce.Application.Services.Implementations
 
                 user.SessionVersion += 1;
                 user.CurrentSessionId = null;
-                user.LastDeviceId = null;
+                user.LastDeviceIdHash = null;
                 user.LastFingerprintHash = null;
                 user.RefreshTokenHash = null;
                 user.RefreshTokenExpiresAtUtc = null;

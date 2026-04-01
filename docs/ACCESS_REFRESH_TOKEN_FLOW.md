@@ -20,7 +20,7 @@ Tài liệu mô tả luồng và file liên quan trong codebase **Ecommerce_API_
 | **Domain** | `Interfaces/IUserRepo.cs` | `GetUserAuthStateAsync` — snapshot phiên từ DB. |
 | **Domain** | `Interfaces/IRefreshTokenRepo.cs` | Lưu / tra cứu / revoke refresh token. |
 | **Domain** | `Entities/RefreshToken.cs` | Entity: hash refresh, `SessionId`, `FamilyId`, `DeviceId`, `IsRevoked`, hạn dùng. |
-| **Domain** | `Entities/User.cs` | `SessionVersion`, `CurrentSessionId`, `LastFingerprintHash`, `LastDeviceId`, `LastLoginIpHash`. |
+| **Domain** | `Entities/User.cs` | `SessionVersion`, `CurrentSessionId`, `LastFingerprintHash`, `LastDeviceIdHash` (HMAC device binding). |
 | **Domain** | `Common/UserAuthState.cs` | Record trả về từ DB cho validation. |
 | **Domain** | `Common/Settings/JwtSettings.cs` | Thời hạn access, refresh (config). |
 | **Infrastructure** | `SecurityHelpers/JwtService.cs` | Ký JWT access; claims `sid`, `sv`, `fp`, `jti`, role, permissions; parse token hết hạn cho refresh. |
@@ -61,7 +61,7 @@ Trong code **không** có claim `iph` hay `did`.
 | `jti` | Id access token (blacklist). |
 | `sub` / `NameIdentifier` | User id. |
 
-Trên **User** (DB): `LastLoginIpHash` (chuỗi IP từ `GetClientIpAddress()`), `LastDeviceId`, `LastFingerprintHash` dùng khi so khớp với DB.
+Trên **User** (DB): `LastDeviceIdHash` (HMAC của `deviceId` với `DeviceBindingSecret`), `LastFingerprintHash` (HMAC `deviceId|ip` với `FingerprintSecret`) dùng khi đồng bộ / kiểm tra phiên.
 
 ---
 
