@@ -9,4 +9,8 @@ public interface IOrderPaymentService
         int userId,
         int orderId,
         CancellationToken cancellationToken = default);
+        
+    Task<bool> RefundAsync(string paymentIntentId, CancellationToken ct = default);  
+        
+
 }

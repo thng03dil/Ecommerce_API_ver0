@@ -13,5 +13,7 @@ namespace Ecommerce.Application.DTOs.Order
         public string PaymentStatus { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }
         public DateTime? PaidAt { get; set; }
+        public List<OrderItemDetailResponseDto> Items { get; set; } = new();
+        public int ItemCount => Items.Count;
     }
 }

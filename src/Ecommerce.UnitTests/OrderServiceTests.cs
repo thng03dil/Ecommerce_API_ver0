@@ -17,11 +17,12 @@ public class OrderServiceTests
 {
     private readonly Mock<IOrderRepo> _orderRepo = new();
     private readonly Mock<ICacheService> _cacheService = new();
+    private readonly Mock<IOrderPaymentService> _paymentService = new();
     private readonly IOrderService _sut;
 
     public OrderServiceTests()
     {
-        _sut = new OrderService(_orderRepo.Object, _cacheService.Object);
+        _sut = new OrderService(_orderRepo.Object, _cacheService.Object, _paymentService.Object);
     }
 
     [Fact]
@@ -103,7 +104,10 @@ public class OrderServiceTests
 
         await act.Should().ThrowAsync<UnauthorizedException>();
         _orderRepo.Verify(
-            x => x.TryCancelPendingOrderForUserAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()),
+            x => x.GetByIdForUserWithItemsAndProductsAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        _orderRepo.Verify(
+            x => x.TryCancelOrderByUserAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }
 
@@ -111,20 +115,33 @@ public class OrderServiceTests
     public async Task CancelPendingOrderAsync_WhenNotFound_ShouldThrowNotFound()
     {
         _orderRepo
-            .Setup(x => x.TryCancelPendingOrderForUserAsync(7, 3, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OrderCancelResult.Fail(OrderCancelFailure.NotFound));
+            .Setup(x => x.GetByIdForUserWithItemsAndProductsAsync(7, 3, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Order?)null);
 
         var act = async () => await _sut.CancelPendingOrderAsync(3, 7);
 
         await act.Should().ThrowAsync<NotFoundException>();
+        _orderRepo.Verify(
+            x => x.TryCancelOrderByUserAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()),
+            Times.Never);
         _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.CategoryVersionKey()), Times.Never);
     }
 
     [Fact]
     public async Task CancelPendingOrderAsync_WhenNotCancellable_ShouldThrowConflict()
     {
+        var existing = new Order
+        {
+            Id = 7,
+            UserId = 3,
+            Status = OrderStatus.Pending,
+            PaymentStatus = PaymentStatus.NotPaid
+        };
         _orderRepo
-            .Setup(x => x.TryCancelPendingOrderForUserAsync(7, 3, It.IsAny<CancellationToken>()))
+            .Setup(x => x.GetByIdForUserWithItemsAndProductsAsync(7, 3, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(existing);
+        _orderRepo
+            .Setup(x => x.TryCancelOrderByUserAsync(7, 3, It.IsAny<CancellationToken>()))
             .ReturnsAsync(OrderCancelResult.Fail(OrderCancelFailure.NotCancellable));
 
         var act = async () => await _sut.CancelPendingOrderAsync(3, 7);
@@ -137,11 +154,16 @@ public class OrderServiceTests
     public async Task CancelPendingOrderAsync_WhenOk_ShouldBumpCacheAndReturnCancelled()
     {
         var created = new DateTime(2026, 3, 24, 12, 0, 0, DateTimeKind.Utc);
-        _orderRepo
-            .Setup(x => x.TryCancelPendingOrderForUserAsync(7, 3, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(
-                OrderCancelResult.Ok(7, 3, 42m, created, null, PaymentStatus.NotPaid));
-
+        var beforeCancel = new Order
+        {
+            Id = 7,
+            UserId = 3,
+            TotalAmount = 42m,
+            CreatedAt = created,
+            Status = OrderStatus.Pending,
+            PaymentStatus = PaymentStatus.NotPaid,
+            OrderItems = new List<OrderItem>()
+        };
         var cancelled = new Order
         {
             Id = 7,
@@ -149,18 +171,23 @@ public class OrderServiceTests
             TotalAmount = 42m,
             CreatedAt = created,
             Status = OrderStatus.Cancelled,
-            PaymentStatus = PaymentStatus.NotPaid,
+            PaymentStatus = PaymentStatus.Cancelled,
             OrderItems = new List<OrderItem>()
         };
         _orderRepo
-            .Setup(x => x.GetByIdForUserWithItemsAndProductsAsync(7, 3, It.IsAny<CancellationToken>()))
+            .SetupSequence(x => x.GetByIdForUserWithItemsAndProductsAsync(7, 3, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(beforeCancel)
             .ReturnsAsync(cancelled);
+        _orderRepo
+            .Setup(x => x.TryCancelOrderByUserAsync(7, 3, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(
+                OrderCancelResult.Ok(7, 3, 42m, created, null, PaymentStatus.Cancelled));
 
         var dto = await _sut.CancelPendingOrderAsync(3, 7);
 
         dto.Id.Should().Be(7);
         dto.Status.Should().Be(OrderStatus.Cancelled);
-        dto.PaymentStatus.Should().Be(PaymentStatus.NotPaid);
+        dto.PaymentStatus.Should().Be(PaymentStatus.Cancelled);
         dto.TotalAmount.Should().Be(42m);
         _cacheService.Verify(x => x.IncrementAsync(CacheKeyGenerator.CategoryVersionKey()), Times.Once);
     }

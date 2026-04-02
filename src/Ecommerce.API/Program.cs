@@ -28,6 +28,7 @@ using StackExchange.Redis;
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 DotEnvBootstrap.LoadIfPresent();
 
@@ -71,7 +72,12 @@ if (string.IsNullOrWhiteSpace(deviceBindingSecret))
     throw new InvalidOperationException("AuthSecurity:DeviceBindingSecret is required. Set via User Secrets: dotnet user-secrets set \"AuthSecurity:DeviceBindingSecret\" \"your-device-binding-secret-32-chars-min\" --project src/Ecommerce.API");
 
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+        .AddJsonOptions(options =>
+        {
+            // Giúp API nhận và trả về Enum dưới dạng chữ (ví dụ: "Shipping" thay vì 2)
+            options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+        });
 
 builder.Services.AddHttpContextAccessor();
 

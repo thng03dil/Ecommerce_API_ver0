@@ -21,33 +21,53 @@ public class AdminOrderController : ControllerBase
 
     [HttpGet]
     [Authorize(Policy = "order.manage.read")]
-    public async Task<IActionResult> GetAll([FromQuery] PaginationDto pagination)
+    public async Task<IActionResult> GetAll([FromQuery] PaginationDto pagination, CancellationToken cancellationToken)
     {
-        var result = await _orderAdminService.GetAllOrdersAsync(pagination);
+        var result = await _orderAdminService.GetAllOrdersAsync(pagination, cancellationToken);
         return ToActionResult(result);
     }
 
     [HttpGet("user/{userId:int}")]
     [Authorize(Policy = "order.manage.read")]
-    public async Task<IActionResult> GetByUser(int userId, [FromQuery] PaginationDto pagination)
+    public async Task<IActionResult> GetByUser(int userId, [FromQuery] PaginationDto pagination, CancellationToken cancellationToken)
     {
-        var result = await _orderAdminService.GetOrdersByUserAsync(userId, pagination);
+        var result = await _orderAdminService.GetOrdersByUserAsync(userId, pagination, cancellationToken);
         return ToActionResult(result);
     }
 
     [HttpGet("{id:int}")]
     [Authorize(Policy = "order.manage.read")]
-    public async Task<IActionResult> GetDetail(int id)
+    public async Task<IActionResult> GetDetail(int id, CancellationToken cancellationToken)
     {
-        var result = await _orderAdminService.GetOrderDetailAsync(id);
+        var result = await _orderAdminService.GetOrderDetailAsync(id, cancellationToken);
         return ToActionResult(result);
     }
 
-    [HttpPut("{id:int}/status")]
+    [HttpPut("{id:int}/cancel")]
     [Authorize(Policy = "order.manage.update")]
-    public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateOrderStatusRequestDto request)
+    public async Task<IActionResult> CancelOrder(int id, CancellationToken cancellationToken)
     {
-        var result = await _orderAdminService.UpdateStatusAsync(id, request);
+        var data = await _orderAdminService.CancelOrderAsync(id, cancellationToken);
+        return OkResponse(data, "Order cancelled successfully.");
+    }
+
+    [HttpPost("{id:int}/approve-return")]
+    [Authorize(Policy = "order.manage.update")]
+    public async Task<IActionResult> ApproveReturn(int id, CancellationToken cancellationToken)
+    {
+        var data = await _orderAdminService.ApproveReturnAsync(id, cancellationToken);
+        return OkResponse(data, "Return approved; order cancelled and stock restored.");
+    }
+
+    /// <summary>Chuyển đơn đã thanh toán: Paid → Shipping → Completed (theo rule repo). Status qua query (Swagger: không cần body JSON).</summary>
+    [HttpPatch("{id:int}/status")]
+    [Authorize(Policy = "order.manage.update")]
+    public async Task<IActionResult> UpdateStatus(
+        int id,
+        [FromQuery] AdminOrderFulfillmentStatus newOrderStatus,
+        CancellationToken cancellationToken)
+    {
+        var result = await _orderAdminService.UpdateOrderStatusAsync(id, newOrderStatus, cancellationToken);
         return ToActionResult(result);
     }
 
@@ -63,7 +83,7 @@ public class AdminOrderController : ControllerBase
             });
         }
 
-        return OkResponse(result.Data, result.Message);
+        return OkResponse(result.Data!, result.Message);
     }
 
     private IActionResult OkResponse<T>(T data, string message = "Success")

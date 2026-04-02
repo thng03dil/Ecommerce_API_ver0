@@ -15,11 +15,16 @@ public class OrderService : IOrderService
 {
     private readonly IOrderRepo _orderRepo;
     private readonly ICacheService _cacheService;
+    private readonly IOrderPaymentService _paymentService;
 
-    public OrderService(IOrderRepo orderRepo, ICacheService cacheService)
+    public OrderService(
+        IOrderRepo orderRepo,
+        ICacheService cacheService,
+        IOrderPaymentService paymentService)
     {
         _orderRepo = orderRepo;
         _cacheService = cacheService;
+        _paymentService = paymentService;
     }
 
     public async Task<ApiResponse<OrderResponseDto>> GetByIdForUserAsync(
@@ -103,7 +108,19 @@ public class OrderService : IOrderService
         if (userId <= 0)
             throw new UnauthorizedException("User is not authenticated.");
 
-        var outcome = await _orderRepo.TryCancelPendingOrderForUserAsync(orderId, userId, cancellationToken);
+        var existing = await _orderRepo.GetByIdForUserWithItemsAndProductsAsync(orderId, userId, cancellationToken);
+        if (existing == null)
+            throw new NotFoundException("Order not found.");
+
+        if (existing.PaymentStatus == PaymentStatus.Succeeded
+            && !string.IsNullOrWhiteSpace(existing.StripePaymentIntentId))
+        {
+            var refunded = await _paymentService.RefundAsync(existing.StripePaymentIntentId!, cancellationToken);
+            if (!refunded)
+                throw new ConflictException("Payment refund could not be processed. Order was not cancelled.");
+        }
+
+        var outcome = await _orderRepo.TryCancelOrderByUserAsync(orderId, userId, cancellationToken);
 
         if (!outcome.Success)
         {
@@ -132,5 +149,40 @@ public class OrderService : IOrderService
             ItemCount = 0,
             Items = new List<OrderItemDetailResponseDto>()
         };
+    }
+
+    public async Task<ApiResponse<OrderResponseDto>> RequestReturnAsync(
+        int userId,
+        int orderId,
+        CancellationToken cancellationToken = default)
+    {
+        if (userId <= 0)
+            return ApiResponse<OrderResponseDto>.ErrorResponse("User is not authenticated.", 401);
+
+        var outcome = await _orderRepo.TryRequestReturnByUserAsync(orderId, userId, cancellationToken);
+
+        if (!outcome.Success) 
+        {
+            return outcome.Failure switch
+            {
+                OrderReturnRequestFailure.NotFound =>
+                    ApiResponse<OrderResponseDto>.ErrorResponse("Order not found.", 404),
+                OrderReturnRequestFailure.AlreadyRequested =>
+                    ApiResponse<OrderResponseDto>.ErrorResponse("Return has already been requested for this order.", 409),
+                OrderReturnRequestFailure.NotEligible =>
+                    ApiResponse<OrderResponseDto>.ErrorResponse(
+                        "Return can only be requested for completed orders that have been paid.",
+                        400),
+                _ => ApiResponse<OrderResponseDto>.ErrorResponse("Return request could not be processed.", 400)
+            };
+        }
+
+        var order = await _orderRepo.GetByIdForUserWithItemsAndProductsAsync(orderId, userId, cancellationToken);
+        if (order == null)
+            return ApiResponse<OrderResponseDto>.ErrorResponse("Order not found.", 404);
+
+        return ApiResponse<OrderResponseDto>.SuccessResponse(
+            OrderResponseMapper.ToDto(order),
+            "Return request submitted.");
     }
 }

@@ -15,19 +15,20 @@ public class PaymentCallbackController : ControllerBase
     }
 
     [HttpGet("success")]
-    [AllowAnonymous] // Cho phép Stripe redirect về mà không cần Token
+    [AllowAnonymous] 
     public async Task<IActionResult> Success([FromQuery] string session_id, CancellationToken ct)
     {
         if (string.IsNullOrEmpty(session_id))
             return BadRequest("Missing session_id");
 
-        // Giao diện JSON trả về để bạn kiểm tra
+        await Task.CompletedTask;
+
         return Ok(new
         {
             Status = "Payment Successful",
-            Message = "Trình duyệt đã quay về API thành công.",
+            Message = "The browser has successfully redirected back to the API.",
             StripeSessionId = session_id,
-            Instruction = "Bây giờ hãy kiểm tra Database hoặc gọi API Get Order để xem trạng thái đã thành 'Paid' chưa (nhờ Webhook xử lý)."
+            Instruction = "Please check the database or call the Get Order API to verify if the status has been updated to 'Paid' (processed via Webhook)."
         });
     }
 
@@ -38,7 +39,7 @@ public class PaymentCallbackController : ControllerBase
         return Ok(new
         {
             Status = "Payment Cancelled",
-            Message = "Người dùng đã nhấn quay lại hoặc hủy thanh toán."
+            Message = "The user has clicked back or cancelled the payment process."
         });
     }
 }

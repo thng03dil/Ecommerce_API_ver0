@@ -26,6 +26,20 @@ public interface IOrderRepo
     /// </summary>
     Task<bool> TryMarkPaidByStripeSessionAsync(string stripeCheckoutSessionId, string? paymentIntentId, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Webhook: mark payment failed for pending orders only; never overwrites <see cref="PaymentStatus.Succeeded"/>.
+    /// </summary>
+    Task<bool> TryMarkPaymentFailedByStripeSessionAsync(
+        string stripeCheckoutSessionId,
+        string? lastPaymentError,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Webhook <c>payment_intent.payment_failed</c> via metadata <c>orderId</c>.</summary>
+    Task<bool> TryMarkPaymentFailedByOrderIdAsync(
+        int orderId,
+        string? lastPaymentError,
+        CancellationToken cancellationToken = default);
+
     Task<(IReadOnlyList<Order> Items, int TotalCount)> GetAllPagedAsync(int pageNumber, int pageSize, CancellationToken cancellationToken = default);
 
     Task<Order?> GetByIdWithItemsAndProductsAsync(int orderId, CancellationToken cancellationToken = default);
@@ -38,13 +52,15 @@ public interface IOrderRepo
 
     Task<Order?> GetByIdTrackedAsync(int orderId, CancellationToken cancellationToken = default);
 
-    Task<bool> TryUpdateStatusAsync(int orderId, OrderStatus newStatus, CancellationToken cancellationToken = default);
+    Task<OrderCancelResult> TryCancelOrderByUserAsync(int orderId, int userId, CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Hủy đơn Pending chưa thanh toán: hoàn kho, đặt <see cref="OrderStatus.Cancelled"/>.
-    /// </summary>
-    Task<OrderCancelResult> TryCancelPendingOrderForUserAsync(
+    Task<OrderCancelResult> TryCancelOrderByAdminAsync(int orderId, CancellationToken cancellationToken = default);
+
+    Task<OrderCancelResult> TryProcessReturnByAdminAsync(int orderId, CancellationToken cancellationToken = default);
+
+    Task<OrderReturnRequestResult> TryRequestReturnByUserAsync(
         int orderId,
         int userId,
         CancellationToken cancellationToken = default);
+    Task<bool> TryUpdateStatusByAdminAsync(int orderId, OrderStatus newStatus, CancellationToken ct);
 }

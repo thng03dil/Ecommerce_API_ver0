@@ -59,6 +59,17 @@ public class OrderController : BaseController
         return ToActionResult(result);
     }
 
+    /// <summary>
+    /// Yêu cầu hoàn hàng (chỉ đơn đã hoàn thành và đã thanh toán). Admin duyệt qua approve-return.
+    /// </summary>
+    [Authorize(Policy = "order.cancel")]
+    [HttpPost("{id:int}/return-request")]
+    public async Task<IActionResult> RequestReturn(int id, CancellationToken cancellationToken)
+    {
+        var result = await _orderService.RequestReturnAsync(CurrentUserId, id, cancellationToken);
+        return ToActionResult(result);
+    }
+
     private IActionResult ToActionResult<T>(ApiResponse<T> result)
     {
         if (!result.Success)

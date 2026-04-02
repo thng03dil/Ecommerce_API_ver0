@@ -8,6 +8,7 @@ using Ecommerce.Domain.Interfaces;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using Stripe.Checkout;
+using Stripe;
 
 namespace Ecommerce.Application.Services.Implementations;
 
@@ -94,13 +95,18 @@ public class OrderPaymentService : IOrderPaymentService
             };
         }).ToList();
 
+        var orderIdMeta = order.Id.ToString();
         var options = new SessionCreateOptions
         {
             Mode = "payment",
             SuccessUrl = successUrl,
             CancelUrl = cancelUrl,
-            ClientReferenceId = order.Id.ToString(),
-            Metadata = new Dictionary<string, string> { ["orderId"] = order.Id.ToString() },
+            ClientReferenceId = orderIdMeta,
+            Metadata = new Dictionary<string, string> { ["orderId"] = orderIdMeta },
+            PaymentIntentData = new SessionPaymentIntentDataOptions
+            {
+                Metadata = new Dictionary<string, string> { ["orderId"] = orderIdMeta }
+            },
             LineItems = lineItems
         };
 
@@ -122,6 +128,30 @@ public class OrderPaymentService : IOrderPaymentService
                 SessionId = session.Id,
                 Order = reloaded != null ? OrderResponseMapper.ToDto(reloaded) : null
             });
+    }
+    public async Task<bool> RefundAsync(string paymentIntentId, CancellationToken ct = default)
+    {
+        if (string.IsNullOrEmpty(paymentIntentId)) return false;
+
+        try
+        {
+            var options = new RefundCreateOptions
+            {
+                PaymentIntent = paymentIntentId,
+            };
+
+            var service = new RefundService();
+            var refund = await service.CreateAsync(options, cancellationToken: ct);
+
+            // Trả về true nếu thành công hoặc đang chờ xử lý
+            return refund.Status == "succeeded" || refund.Status == "pending";
+        }
+        catch (StripeException ex)
+        {
+            // Log lỗi: ví dụ tài khoản Stripe không đủ số dư để refund
+            Console.WriteLine($"Stripe Error: {ex.Message}");
+            return false;
+        }
     }
 
     /// <summary>Stripe smallest currency unit: USD = cents (price × 100); USD = whole units as <c>long</c>.</summary>

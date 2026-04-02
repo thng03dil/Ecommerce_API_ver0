@@ -18,6 +18,9 @@ namespace Ecommerce.Domain.Entities
         public string? StripePaymentIntentId { get; set; }
         public DateTime? PaidAt { get; set; }
 
+        /// <summary>Stripe / gateway message when payment fails; null if none.</summary>
+        public string? LastPaymentError { get; set; }
+
         // Navigation property
         public User? User { get; set; }
         public  ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();

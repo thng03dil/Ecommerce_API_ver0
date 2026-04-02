@@ -22,4 +22,5 @@ public class OrderResponseDto
     public string? StripePaymentIntentId { get; set; }
 
     public List<OrderItemDetailResponseDto> Items { get; set; } = new();
+    
 }

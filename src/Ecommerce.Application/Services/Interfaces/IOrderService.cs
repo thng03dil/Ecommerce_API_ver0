@@ -27,4 +27,12 @@ public interface IOrderService
         int userId,
         int orderId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Yêu cầu hoàn hàng: chỉ khi đơn <see cref="OrderStatus.Completed"/> và đã thanh toán (<see cref="PaymentStatus.Succeeded"/>).
+    /// </summary>
+    Task<ApiResponse<OrderResponseDto>> RequestReturnAsync(
+        int userId,
+        int orderId,
+        CancellationToken cancellationToken = default);
 }

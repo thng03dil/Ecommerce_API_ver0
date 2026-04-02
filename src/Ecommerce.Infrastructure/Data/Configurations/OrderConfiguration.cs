@@ -49,6 +49,10 @@ namespace Ecommerce.Infrastructure.Data.Configurations
             builder.Property(o => o.StripePaymentIntentId)
                 .HasMaxLength(255);
 
+            builder.Property(o => o.LastPaymentError)
+                .HasMaxLength(2000)
+                .IsRequired(false);
+
             builder.HasIndex(o => o.StripeCheckoutSessionId)
                 .IsUnique()
                 .HasFilter("[StripeCheckoutSessionId] IS NOT NULL");

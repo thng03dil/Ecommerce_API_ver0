@@ -27,6 +27,24 @@ public static class OrderResponseMapper
             Items = items
         };
     }
+    public static OrderDetailResponseDto ToDetailDto(OrderEntity order)
+    {
+        var items = (order.OrderItems ?? Enumerable.Empty<OrderItemEntity>())
+            .Select(MapItem)
+            .ToList();
+
+        return new OrderDetailResponseDto
+        {
+            Id = order.Id,
+            UserId = order.UserId,
+            TotalAmount = order.TotalAmount,
+            Status = order.Status.ToString(),
+            PaymentStatus = order.PaymentStatus.ToString(),
+            CreatedAt = order.CreatedAt,
+            PaidAt = order.PaidAt,
+            Items = items // Gán danh sách items đã map
+        };
+    }
 
     private static OrderItemDetailResponseDto MapItem(OrderItemEntity i) =>
         new()

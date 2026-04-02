@@ -1,4 +1,7 @@
-﻿using Microsoft.OpenApi.Models;
+using System.Linq;
+using Ecommerce.Application.DTOs.Order;
+using Microsoft.OpenApi.Any;
+using Microsoft.OpenApi.Models;
 
 namespace Ecommerce.API.Extensions
 {
@@ -71,8 +74,17 @@ namespace Ecommerce.API.Extensions
                         Array.Empty<string>()
                     }
                 });
+
+                // OpenAPI: string + enum names (Swagger UI dropdown / ví dụ "Shipping", không phải số)
+                c.MapType<AdminOrderFulfillmentStatus>(() => new OpenApiSchema
+                {
+                    Type = "string",
+                    Enum = Enum.GetNames(typeof(AdminOrderFulfillmentStatus))
+                        .Select(n => (IOpenApiAny)new OpenApiString(n))
+                        .ToList()
+                });
             });
             return services;
         }
-        }
+    }
 }

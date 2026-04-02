@@ -28,6 +28,7 @@ public class StripeWebhookController : ControllerBase
 
     /// <summary>
     /// Stripe gửi raw JSON; chữ ký header Stripe-Signature bắt buộc. Pipeline phải bật buffering cho path này (xem Program.cs).
+    /// Subscribe: checkout.session.completed, payment_intent.payment_failed, checkout.session.async_payment_failed, checkout.session.expired.
     /// </summary>
     [HttpPost("webhook")]
     [AllowAnonymous]
@@ -62,23 +63,89 @@ public class StripeWebhookController : ControllerBase
             return BadRequest();
         }
 
-        if (string.Equals(stripeEvent.Type, "checkout.session.completed", StringComparison.Ordinal))
+        switch (stripeEvent.Type)
         {
-            if (stripeEvent.Data.Object is Session session)
-            {
-                if (string.Equals(session.PaymentStatus, "paid", StringComparison.OrdinalIgnoreCase))
+            case "checkout.session.completed":
+                if (stripeEvent.Data.Object is Session completedSession
+                    && string.Equals(completedSession.PaymentStatus, "paid", StringComparison.OrdinalIgnoreCase))
                 {
                     var ok = await _orderRepo.TryMarkPaidByStripeSessionAsync(
-                        session.Id,
-                        session.PaymentIntentId,
+                        completedSession.Id,
+                        completedSession.PaymentIntentId,
                         cancellationToken);
 
                     if (!ok)
-                        _logger.LogWarning("Checkout session {SessionId} did not match a pending order.", session.Id);
+                        _logger.LogWarning("Checkout session {SessionId} did not match a pending order for mark paid.", completedSession.Id);
                 }
-            }
+                break;
+
+            case "payment_intent.payment_failed":
+                if (stripeEvent.Data.Object is PaymentIntent pi)
+                {
+                    var err = FormatStripePaymentError(pi);
+                    if (TryGetOrderIdFromMetadata(pi.Metadata, out var orderId))
+                    {
+                        var ok = await _orderRepo.TryMarkPaymentFailedByOrderIdAsync(orderId, err, cancellationToken);
+                        if (!ok)
+                            _logger.LogWarning(
+                                "payment_intent.payment_failed: order {OrderId} not updated (not pending or already final).",
+                                orderId);
+                    }
+                    else
+                        _logger.LogWarning(
+                            "payment_intent.payment_failed: missing orderId in PaymentIntent metadata (PI {PaymentIntentId}).",
+                            pi.Id);
+                }
+                break;
+
+            case "checkout.session.async_payment_failed":
+                if (stripeEvent.Data.Object is Session asyncFailedSession)
+                {
+                    var ok = await _orderRepo.TryMarkPaymentFailedByStripeSessionAsync(
+                        asyncFailedSession.Id,
+                        "Async payment failed",
+                        cancellationToken);
+                    if (!ok)
+                        _logger.LogWarning(
+                            "checkout.session.async_payment_failed: session {SessionId} did not update an order.",
+                            asyncFailedSession.Id);
+                }
+                break;
+
+            case "checkout.session.expired":
+                if (stripeEvent.Data.Object is Session expiredSession)
+                {
+                    var ok = await _orderRepo.TryMarkPaymentFailedByStripeSessionAsync(
+                        expiredSession.Id,
+                        "Checkout session expired",
+                        cancellationToken);
+                    if (!ok)
+                        _logger.LogWarning(
+                            "checkout.session.expired: session {SessionId} did not update an order.",
+                            expiredSession.Id);
+                }
+                break;
         }
 
         return Ok();
+    }
+
+    private static bool TryGetOrderIdFromMetadata(Dictionary<string, string>? metadata, out int orderId)
+    {
+        orderId = 0;
+        if (metadata == null || !metadata.TryGetValue("orderId", out var raw) || string.IsNullOrWhiteSpace(raw))
+            return false;
+        return int.TryParse(raw.Trim(), out orderId);
+    }
+
+    private static string? FormatStripePaymentError(PaymentIntent pi)
+    {
+        var msg = pi.LastPaymentError?.Message;
+        var code = pi.LastPaymentError?.Code;
+        if (string.IsNullOrEmpty(msg))
+            return code;
+        if (string.IsNullOrEmpty(code))
+            return msg;
+        return $"{code}: {msg}";
     }
 }
