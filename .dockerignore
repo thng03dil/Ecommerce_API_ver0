@@ -16,5 +16,5 @@
 docker-compose*
 *.log
 
-# Loại bỏ các file cấu hình nhạy cảm (nếu bạn dùng .env)
+# Loại bỏ các file cấu hình nhạy cảm 
 .env

@@ -9,7 +9,8 @@ public class PermissionPolicyProvider : DefaultAuthorizationPolicyProvider
     private static readonly Regex PermissionStyleName = new(
         "^[a-z0-9]+(\\.[a-z0-9]+)+$",
         RegexOptions.CultureInvariant,
-        TimeSpan.FromMilliseconds(250));
+        TimeSpan.FromMilliseconds(250)
+        );
 
     public PermissionPolicyProvider(IOptions<AuthorizationOptions> options)
         : base(options)

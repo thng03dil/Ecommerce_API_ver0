@@ -59,7 +59,7 @@ public class AdminOrderController : ControllerBase
         return OkResponse(data, "Return approved; order cancelled and stock restored.");
     }
 
-    /// <summary>Chuyển đơn đã thanh toán: Paid → Shipping → Completed (theo rule repo). Status qua query (Swagger: không cần body JSON).</summary>
+    /// Chuyển đơn đã thanh toán: Paid → Shipping → Completed (theo rule repo)
     [HttpPatch("{id:int}/status")]
     [Authorize(Policy = "order.manage.update")]
     public async Task<IActionResult> UpdateStatus(

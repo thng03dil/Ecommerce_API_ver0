@@ -14,9 +14,8 @@ internal static class DotEnvBootstrap
         }
     }
 
-    /// <summary>
-    /// Tìm file .env: cùng cấp với .sln (thư mục chạy dotnet), hoặc đi ngược từ BaseDirectory / cwd.
-    /// </summary>
+    // Tìm file .env: cùng cấp với .sln 
+    
     private static IEnumerable<string> GetCandidatePaths()
     {
         foreach (var root in GetSearchRoots())

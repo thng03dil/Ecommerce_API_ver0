@@ -36,14 +36,12 @@ public static class InfrastructureExtensions
         return services;
     }
 
-    /// <summary>
     /// Đọc <c>Caching:Provider</c> để chọn backend:
     /// <list type="bullet">
     ///   <item><c>None</c>  — <see cref="NoOpCacheService"/> (direct-DB, không cần Redis/memory).</item>
     ///   <item><c>Memory</c> hoặc trống — <see cref="RedisCacheService"/> + <c>DistributedMemoryCache</c> (local dev, multiplexer null).</item>
     ///   <item><c>Redis</c>  — <see cref="RedisCacheService"/> + StackExchange.Redis (production / có Redis server).</item>
     /// </list>
-    /// </summary>
     private static IServiceCollection AddCaching(
         this IServiceCollection services,
         IConfiguration configuration)
@@ -58,7 +56,7 @@ public static class InfrastructureExtensions
         if (string.Equals(provider, "None", StringComparison.OrdinalIgnoreCase))
         {
             services.AddSingleton<ICacheService, NoOpCacheService>();
-            Log.Information("Caching:Provider=None — NoOpCacheService (direct-DB, no cache).");
+            Log.Information("Cache Provider: None");
             return services;
         }
 
@@ -73,7 +71,7 @@ public static class InfrastructureExtensions
             {
                 var config = ConfigurationOptions.Parse(redisConn, true);
                 config.AbortOnConnectFail = false;
-                config.ConnectTimeout = 200;  // Fast timeout để trigger L1 nhanh
+                config.ConnectTimeout = 300;  // Fast timeout để trigger L1 nhanh
                 return ConnectionMultiplexer.Connect(config);
             });
 
@@ -83,16 +81,17 @@ public static class InfrastructureExtensions
                 options.InstanceName = instanceName;
             });
 
-            services.Configure<RedisCacheOptions>(o =>
+            services.Configure<RedisCacheOptions>(o => 
             {
                 o.DistributedCacheKeyPrefix = instanceName;
             });
 
             services.AddSingleton<ICacheService, RedisCacheService>();
-            Log.Information("Caching:Provider=Redis — StackExchange.Redis + RedisCacheService.");
+            Log.Information("Cache Provider: Redis");
             return services;
         }
-
+        else 
+        {
         // TRƯỜNG HỢP 3: Sử dụng In-Memory (Cấu hình "Memory" hoặc Fallback khi Redis thiếu ConnectionString)
         services.AddDistributedMemoryCache();
         services.Configure<RedisCacheOptions>(o =>
@@ -100,12 +99,8 @@ public static class InfrastructureExtensions
             o.DistributedCacheKeyPrefix = string.Empty;
         });
         services.AddSingleton<ICacheService, RedisCacheService>();
-
-        if (string.Equals(provider, "Redis", StringComparison.OrdinalIgnoreCase))
-            Log.Warning("Caching:Provider=Redis nhưng Redis:ConnectionString trống — In-Memory");
-        else
-            Log.Information("Caching:Provider=Memory — In-Memory Mode enabled.");
-
+        Log.Information("Cache Provider: Memory Only");
+    }
         return services;
     }
 

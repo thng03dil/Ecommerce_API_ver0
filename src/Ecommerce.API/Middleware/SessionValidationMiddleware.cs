@@ -5,9 +5,6 @@ using System.Security.Claims;
 
 namespace Ecommerce.API.Middleware
 {
-    /// <summary>
-    /// Intercepts every [Authorize] request: JTI blacklist check, fingerprint validation, reject legacy tokens.
-    /// </summary>
     public class SessionValidationMiddleware
     {
         private readonly RequestDelegate _next;

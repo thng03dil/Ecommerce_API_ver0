@@ -412,7 +412,7 @@ public class OrderRepo : IOrderRepo
         if (order == null) return false;
 
         // chỉ cho phép đổi nếu Đã thanh toán (Succeeded) (Paid)
-        // Và không cho phép đổi ngược lại trạng thái thấp hơn (Ví dụ: từ Completed về Shipping)
+        // Và không cho phép đổi ngược lại trạng thái thấp hơn 
         if (order.PaymentStatus != PaymentStatus.Succeeded) return false;
         
         // Logic kiểm tra thứ tự trạng thái (tùy chọn)

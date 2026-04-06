@@ -1,4 +1,4 @@
-namespace Ecommerce.Domain.Interfaces;
+ namespace Ecommerce.Domain.Interfaces;
 
 public sealed class OrderPlaceResult
 {

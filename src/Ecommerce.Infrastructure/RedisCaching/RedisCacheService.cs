@@ -53,10 +53,9 @@ public class RedisCacheService : ICacheService
         _options = options?.Value ?? new RedisCacheOptions();
     }
 
-    /// <summary>
     /// Redis multiplexer được cấu private bool IsRedisAvailable => _redis is not null && _redis.IsConnected;hình nhưng mất kết nối → fast-fail,
     /// tránh chờ timeout 5 s. Khi multiplexer null (Memory mode) thì false.
-    /// </summary>
+    
     private bool IsRedisAvailable => _redis is not null && _redis.IsConnected;
 
     public async Task<T?> GetAsync<T>(string key)

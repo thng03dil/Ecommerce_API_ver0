@@ -8,5 +8,5 @@ public interface ICacheService
     /// <summary>Đọc bản ghi phiên bản cache (Redis STRING). Soft-fail: lỗi Redis hoặc thiếu key → "1".</summary>
     Task<string> GetVersionAsync(string key);
     Task<long> IncrementAsync(string key);
-    Task RemoveByPrefixAsync(string prefix);
+    Task RemoveByPrefixAsync(string prefix); 
 }

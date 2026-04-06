@@ -26,10 +26,9 @@ public class StripeWebhookController : ControllerBase
         _logger = logger;
     }
 
-    /// <summary>
     /// Stripe gửi raw JSON; chữ ký header Stripe-Signature bắt buộc. Pipeline phải bật buffering cho path này (xem Program.cs).
     /// Subscribe: checkout.session.completed, payment_intent.payment_failed, checkout.session.async_payment_failed, checkout.session.expired.
-    /// </summary>
+
     [HttpPost("webhook")]
     [AllowAnonymous]
     [IgnoreAntiforgeryToken]
