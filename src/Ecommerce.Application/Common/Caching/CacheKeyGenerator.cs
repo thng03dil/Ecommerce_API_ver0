@@ -3,7 +3,7 @@ using System.Text;
 using System.Text.Json;
 
 namespace Ecommerce.Application.Common.Caching
-{
+{ 
     public static class CacheKeyGenerator
     {
         public static string Category(int id) => $"category:{id}";
